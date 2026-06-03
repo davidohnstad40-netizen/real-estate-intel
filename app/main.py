@@ -319,6 +319,30 @@ with tab_detail:
                 st.subheader("💰 Offer Model")
                 st.markdown(st.session_state.ai_theses[f"offers_{sel_id}"])
 
+            # Score History Chart
+            st.divider()
+            st.subheader("📈 Score History")
+            try:
+                hist = get_con().execute("""
+                    SELECT snapshot_date, motivation_score, knock_tier
+                    FROM score_history WHERE id = ?
+                    ORDER BY snapshot_date ASC
+                """, [sel_id]).df()
+                if not hist.empty:
+                    hist["snapshot_date"] = pd.to_datetime(hist["snapshot_date"])
+                    st.line_chart(hist.set_index("snapshot_date")["motivation_score"],
+                                  height=180, use_container_width=True)
+                    # Tier change log
+                    tier_changes = hist[hist["knock_tier"] != hist["knock_tier"].shift()]
+                    if len(tier_changes) > 1:
+                        st.caption("**Tier changes:**")
+                        for _, tc in tier_changes.iterrows():
+                            st.caption(f"  {tc.snapshot_date.date()} → {tc.knock_tier}")
+                else:
+                    st.caption("No history yet — runs daily after first snapshot.")
+            except Exception as e:
+                st.caption(f"History unavailable: {e}")
+
             # Human Feedback
             st.divider()
             st.subheader("Log Outcome")

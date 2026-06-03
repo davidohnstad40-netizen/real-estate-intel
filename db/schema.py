@@ -1,5 +1,5 @@
-"""
-DuckDB schema — creates all tables on first run.
+﻿"""
+DuckDB schema â€” creates all tables on first run.
 """
 import duckdb, os
 
@@ -104,3 +104,15 @@ def _init(con: duckdb.DuckDBPyConnection):
         recorded_at  TIMESTAMP DEFAULT current_timestamp,
         PRIMARY KEY (id, recorded_at)
     )""")
+    con.execute("""
+    CREATE TABLE IF NOT EXISTS contact_log (
+        log_id         VARCHAR PRIMARY KEY,
+        property_id    VARCHAR,
+        contact_date   DATE,
+        method         VARCHAR,
+        outcome        VARCHAR,
+        notes          TEXT,
+        follow_up_date DATE,
+        created_at     TIMESTAMP DEFAULT current_timestamp
+    )""")
+
