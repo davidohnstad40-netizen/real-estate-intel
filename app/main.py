@@ -775,6 +775,103 @@ with tab_data:
         """).df()
         st.dataframe(ct_df, use_container_width=True, hide_index=True)
 
+    # ── Future Sellers Watchlist ─────────────────────────────────────────
+    st.divider()
+    st.markdown("**📅 Future Seller Watchlist** (2022-25 buyers with thin/negative equity)")
+    st.caption("These buyers are likely your next wave of T1/T2 sellers in 12-24 months.")
+    try:
+        fw = con.execute("""
+            SELECT address, sale_year, sale_price, emv, equity_pct, est_piti,
+                   severity, timeline, homestead, absentee, check_after
+            FROM future_sellers
+            ORDER BY CASE severity
+                WHEN 'deeply_underwater' THEN 1
+                WHEN 'underwater' THEN 2
+                WHEN 'thin_equity' THEN 3 ELSE 4 END,
+            equity_pct ASC
+            LIMIT 100
+        """).df()
+
+        col_fw1, col_fw2, col_fw3 = st.columns(3)
+        col_fw1.metric("Total Watchlist", len(fw))
+        col_fw2.metric("Deeply Underwater", int((fw.severity=="deeply_underwater").sum()))
+        col_fw3.metric("Thin Equity", int((fw.severity=="thin_equity").sum()))
+
+        if not fw.empty:
+            fw["sale_price"] = fw["sale_price"].apply(lambda x: f"${x:,.0f}" if x else "--")
+            fw["emv"]        = fw["emv"].apply(lambda x: f"${x:,.0f}" if x else "--")
+            fw["equity_pct"] = fw["equity_pct"].apply(lambda x: f"{x:+.1f}%" if x is not None else "--")
+            fw["est_piti"]   = fw["est_piti"].apply(lambda x: f"${x:,.0f}/mo" if x else "--")
+            def sev_bg(row):
+                c = {"deeply_underwater":"background-color:#fff0f0",
+                     "underwater":"background-color:#ffe8e8",
+                     "thin_equity":"background-color:#fffde7"}.get(row["severity"],"")
+                return [c]*len(row)
+            st.dataframe(fw.style.apply(sev_bg, axis=1),
+                         use_container_width=True, hide_index=True, height=300)
+            if st.button("🔄 Refresh Watchlist (queries MetroGIS)"):
+                with st.spinner("Scanning for underwater buyers..."):
+                    from ingestion.future_sellers import find_underwater_buyers, load_to_watchlist
+                    df_w = find_underwater_buyers()
+                    n = load_to_watchlist(df_w)
+                    st.success(f"Added {n} new entries.")
+                    st.rerun()
+    except Exception as e:
+        st.caption(f"Watchlist not available: {e}")
+        if st.button("Initialize Future Seller Watchlist"):
+            with st.spinner("Scanning Blaine for underwater buyers..."):
+                try:
+                    from ingestion.future_sellers import find_underwater_buyers, load_to_watchlist
+                    df_w = find_underwater_buyers()
+                    n = load_to_watchlist(df_w)
+                    st.success(f"Found {len(df_w)} at-risk buyers, loaded {n}.")
+                    st.rerun()
+                except Exception as e2:
+                    st.error(str(e2))
+
+    # ── MLS History Check ────────────────────────────────────────────────
+    st.divider()
+    st.markdown("**📋 MLS Listing History** (checks Zillow for prior expired listings)")
+    st.caption("Properties that previously expired or withdrew from MLS = 25 pts added to score.")
+    if st.button("Check T1/T2 Zillow History", key="check_mls"):
+        t1t2_ids = df_all[df_all.knock_tier.isin(["T1","T2"])]["id"].tolist()
+        with st.spinner(f"Checking {len(t1t2_ids)} properties on Zillow..."):
+            try:
+                from ingestion.mls_history import check_properties_batch
+                mls_df = check_properties_batch(t1t2_ids)
+                if not mls_df.empty:
+                    hits = mls_df[mls_df.mls_signal_pts > 0]
+                    if not hits.empty:
+                        st.warning(f"Found {len(hits)} properties with prior listing history!")
+                        st.dataframe(hits[["address","mls_signal_pts","mls_reason"]],
+                                     use_container_width=True, hide_index=True)
+                    else:
+                        st.info("No prior MLS history found on Zillow for T1/T2 properties.")
+            except Exception as e:
+                st.error(f"MLS check error: {e}")
+
+    # ── Permit Activity Check ────────────────────────────────────────────
+    st.divider()
+    st.markdown("**🔨 Permit Activity** (Anoka County building permits)")
+    st.caption("Recent renovation permits = owner prepping to sell. Up to +15 pts.")
+
+    permit_addr = st.text_input("Check address for permits:", placeholder="3316 117th Ln NE")
+    if st.button("Check Permits") and permit_addr:
+        with st.spinner("Querying Anoka County permit database..."):
+            try:
+                from ingestion.permits import check_permits, score_permit_signal
+                permits = check_permits(permit_addr)
+                if permits:
+                    pts = score_permit_signal(permits)
+                    st.success(f"Found {len(permits)} permit(s) — signal score: +{pts} pts")
+                    for p in permits:
+                        st.markdown(f"- {p.get('permit_type','?')} ({p.get('issue_date','?')}): "
+                                    f"{p.get('description','')}")
+                else:
+                    st.info("No permits found (or site unavailable).")
+            except Exception as e:
+                st.error(f"Permit check error: {e}")
+
     st.divider()
     st.markdown("**Quick Export**")
     if st.button("📥 Export T1/T2 as CSV"):

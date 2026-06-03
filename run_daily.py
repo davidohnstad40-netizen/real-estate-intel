@@ -104,7 +104,34 @@ def build_summary(con, upgrades, today: date) -> str:
 
 def main():
     today = date.today()
-    print(f"[run_daily] Starting daily run for {today} …\n")
+    print(f"[run_daily] Starting daily run for {today} ...\n")
+
+    # ------------------------------------------------------------------ #
+    # 0. Weekly tasks (run on Mondays only)                               #
+    # ------------------------------------------------------------------ #
+    if today.weekday() == 0:  # Monday
+        print("[run_daily] Monday -- running weekly tasks...")
+
+        # Refresh all tracked properties from MetroGIS (catches homestead changes,
+        # EMV updates, and any properties that sold since last check)
+        try:
+            from ingestion.refresh_from_metrogis import main as refresh_main
+            print("[run_daily] MetroGIS refresh starting...")
+            refresh_main()
+        except Exception as e:
+            print(f"[run_daily] MetroGIS refresh error: {e}")
+
+        # Update future seller watchlist (finds new underwater buyers)
+        try:
+            from ingestion.future_sellers import find_underwater_buyers, load_to_watchlist
+            print("[run_daily] Scanning for new underwater buyers...")
+            df_watch = find_underwater_buyers()
+            n = load_to_watchlist(df_watch)
+            print(f"[run_daily] Future sellers: {len(df_watch)} at-risk, {n} new entries added")
+        except Exception as e:
+            print(f"[run_daily] Future seller scan error: {e}")
+
+        print("[run_daily] Weekly tasks complete.\n")
 
     # ------------------------------------------------------------------ #
     # 1. Run snapshot (also inserts into score_history)                   #
