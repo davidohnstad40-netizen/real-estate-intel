@@ -1,4 +1,4 @@
-"""
+﻿"""
 ingestion/mcro_fixed.py
 
 Fixed MCRO Playwright scraper using the JavaScript React native setter trick.
@@ -61,7 +61,7 @@ SEARCHES = [
 MCRO_URL = "https://publicaccess.courts.state.mn.us/CaseSearch"
 
 # ---------------------------------------------------------------------------
-# JS helper — sets React-controlled input value and fires events
+# JS helper -- sets React-controlled input value and fires events
 # ---------------------------------------------------------------------------
 _SET_INPUTS_JS = """
 (values) => {
@@ -92,7 +92,7 @@ async def search_person(page, last_name: str, first_name: str) -> str:
     except Exception as exc:
         return f"[ERROR loading page: {exc}]"
 
-    # Accept terms — MCRO shows "Yes, I Accept" dialog on each fresh load
+    # Accept terms -- MCRO shows "Yes, I Accept" dialog on each fresh load
     try:
         btn = page.locator("button", has_text="Yes, I Accept").first
         if await btn.is_visible(timeout=3_000):
@@ -190,7 +190,7 @@ if __name__ == "__main__":
     output_path = os.path.join(_ROOT, "data", "mcro_results_v2.json")
 
     print("=" * 60)
-    print("MCRO Scraper v2 — React native setter fix")
+    print("MCRO Scraper v2 -- React native setter fix")
     print("=" * 60)
     print(f"Searching {len(SEARCHES)} people …")
     print(f"Output -> {output_path}")

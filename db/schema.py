@@ -1,24 +1,24 @@
-﻿“””
-DuckDB schema — creates all tables on first run.
+﻿"""
+DuckDB schema -- creates all tables on first run.
 
 Multi-process note: DuckDB allows only ONE write connection at a time.
 Streamlit holds the write connection; CLI scripts must use read_only=True
 OR stop Streamlit first for write operations.
 CLI scripts that only read can safely use read_only=True while Streamlit runs.
-“””
+"""
 import duckdb, os
 
 def get_db(path: str = None, read_only: bool = False) -> duckdb.DuckDBPyConnection:
-    path = path or os.getenv(“DB_PATH”, “./data/rei.duckdb”)
+    path = path or os.getenv("DB_PATH", "./data/rei.duckdb")
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     try:
         con = duckdb.connect(path, read_only=read_only)
     except Exception as e:
-        if “being used by another process” in str(e) and not read_only:
+        if "being used by another process" in str(e) and not read_only:
             raise RuntimeError(
-                f”Cannot open DB for writing — another process (Streamlit?) holds the lock.\n”
-                f”Stop the Streamlit app first, then run this script.\n”
-                f”Original error: {e}”
+                f"Cannot open DB for writing -- another process (Streamlit?) holds the lock.\n"
+                f"Stop the Streamlit app first, then run this script.\n"
+                f"Original error: {e}"
             ) from e
         raise
     if read_only:

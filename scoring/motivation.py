@@ -1,5 +1,5 @@
-"""
-Motivation score engine — 0-100 composite score.
+﻿"""
+Motivation score engine -- 0-100 composite score.
 Each factor returns (points, label) so the UI can explain every point.
 """
 from __future__ import annotations
@@ -66,8 +66,8 @@ def score(p: PropertyInput) -> ScoreResult:
     is_new     = p.years_owned is not None and p.years_owned <= 1.5
 
     if is_listed or is_new:
-        signal = "Active MLS listing — not an off-market target" if is_listed else \
-                 "Recently purchased (<2 yrs) — too early"
+        signal = "Active MLS listing -- not an off-market target" if is_listed else \
+                 "Recently purchased (<2 yrs) -- too early"
         return ScoreResult(total=5, tier="SKIP", factors={"skip": 5}, primary_signal=signal)
 
     # ── Equity calculation ────────────────────────────────────────────────────
@@ -154,19 +154,19 @@ def score(p: PropertyInput) -> ScoreResult:
     # Primary signal
     parts = []
     if "divorce_confirmed"    in factors: parts.append("Post-purchase DIVORCE on record")
-    if "divorce_possible"     in factors: parts.append("Possible divorce — verify before visiting")
-    if "investor_llc"         in factors: parts.append("Investor LLC — profit-driven")
-    if "no_homestead"         in factors: parts.append("No homestead — absentee/moved")
-    if "owner_elderly"        in factors: parts.append("Owner age 79 — estate/care signal")
-    if "peak_buyer_2020_22"   in factors: parts.append(f"Peak buyer {purchase_year} — high-rate carry")
-    if "negative_equity"      in factors: parts.append("Est. negative equity — underwater")
+    if "divorce_possible"     in factors: parts.append("Possible divorce -- verify before visiting")
+    if "investor_llc"         in factors: parts.append("Investor LLC -- profit-driven")
+    if "no_homestead"         in factors: parts.append("No homestead -- absentee/moved")
+    if "owner_elderly"        in factors: parts.append("Owner age 79 -- estate/care signal")
+    if "peak_buyer_2020_22"   in factors: parts.append(f"Peak buyer {purchase_year} -- high-rate carry")
+    if "negative_equity"      in factors: parts.append("Est. negative equity -- underwater")
     if "thin_equity"          in factors: parts.append("Thin equity (<10%)")
-    if "equity_rich_long_hold" in factors: parts.append(f"{int(p.years_owned)}-yr hold — equity-rich")
-    if "long_hold_15plus"     in factors: parts.append(f"{int(p.years_owned)}-yr hold — cold knock")
-    if "trust_owned"          in factors: parts.append("Trust-owned — estate vehicle")
+    if "equity_rich_long_hold" in factors: parts.append(f"{int(p.years_owned)}-yr hold -- equity-rich")
+    if "long_hold_15plus"     in factors: parts.append(f"{int(p.years_owned)}-yr hold -- cold knock")
+    if "trust_owned"          in factors: parts.append("Trust-owned -- estate vehicle")
     if not parts:
         yr = f"{int(p.years_owned)}-yr hold" if p.years_owned else "hold unknown"
-        parts.append(f"No strong signals — cold knock ({yr})")
+        parts.append(f"No strong signals -- cold knock ({yr})")
 
     return ScoreResult(
         total=total, tier=tier, factors=factors,
@@ -177,4 +177,4 @@ def score(p: PropertyInput) -> ScoreResult:
 
 
 TIER_COLOR = {"T1": "#C00000", "T2": "#D6A800", "T3": "#375623", "SKIP": "#888888", "TBD": "#AAAAAA"}
-TIER_LABEL = {"T1": "🔴 T1 — KNOCK", "T2": "🟡 T2 — KNOCK", "T3": "🟢 T3", "SKIP": "⛔ SKIP", "TBD": "❓ TBD"}
+TIER_LABEL = {"T1": "🔴 T1 -- KNOCK", "T2": "🟡 T2 -- KNOCK", "T3": "🟢 T3", "SKIP": "⛔ SKIP", "TBD": "❓ TBD"}

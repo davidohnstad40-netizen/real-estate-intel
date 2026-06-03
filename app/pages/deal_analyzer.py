@@ -1,5 +1,5 @@
-"""
-Deal Analyzer — Investment Return Calculator
+﻿"""
+Deal Analyzer -- Investment Return Calculator
 Select a property → input purchase price + rehab → see full deal metrics
 """
 import os
@@ -126,7 +126,7 @@ with col_equity:
     st.metric("Est. Equity", _fmt(prop.get("est_equity_usd") or 0))
 
 with col_signal:
-    signal = prop.get("primary_signal") or "—"
+    signal = prop.get("primary_signal") or "--"
     st.metric("Primary Signal", signal)
 
 st.markdown("---")
@@ -155,7 +155,7 @@ else:
 left_col, right_col = st.columns([1, 1], gap="large")
 
 # =========================================================
-# LEFT — Deal Inputs
+# LEFT -- Deal Inputs
 # =========================================================
 with left_col:
     st.subheader("Deal Inputs")
@@ -180,7 +180,7 @@ with left_col:
     )
 
     closing_pct = st.slider(
-        "Closing Costs — Buy (%)",
+        "Closing Costs -- Buy (%)",
         min_value=2.0,
         max_value=4.0,
         value=3.0,
@@ -236,7 +236,7 @@ with left_col:
     )
 
     arv_override = st.number_input(
-        "ARV Override ($)  — leave 0 to use estimate",
+        "ARV Override ($)  -- leave 0 to use estimate",
         min_value=0,
         max_value=5_000_000,
         value=0,
@@ -298,7 +298,7 @@ profit_margin_pct = (gross_profit / arv * 100.0) if arv > 0 else 0.0
 rating = _deal_rating(profit_margin_pct)
 
 # =========================================================
-# RIGHT — Deal Metrics
+# RIGHT -- Deal Metrics
 # =========================================================
 with right_col:
     st.subheader("Deal Metrics")
@@ -308,7 +308,7 @@ with right_col:
     cost_lines = [
         ("Purchase", purchase_price),
         ("Rehab", rehab_budget),
-        (f"Closing — Buy ({closing_pct:.2f}%)", closing_buy),
+        (f"Closing -- Buy ({closing_pct:.2f}%)", closing_buy),
         (f"Holding ({holding_months} mo @ ${holding_cost_mo:,}/mo)", holding_total),
     ]
     for label, val in cost_lines:
@@ -329,8 +329,8 @@ with right_col:
     # ── Returns ──────────────────────────────────────────────────────────────
     st.markdown("**RETURNS**")
     return_lines = [
-        (f"ARV — {arv_source}", arv),
-        ("Closing — Sell (6%)", -closing_sell),
+        (f"ARV -- {arv_source}", arv),
+        ("Closing -- Sell (6%)", -closing_sell),
         ("Net Proceeds", net_proceeds),
     ]
     for label, val in return_lines:
@@ -343,7 +343,7 @@ with right_col:
         unsafe_allow_html=True,
     )
 
-    # Gross profit — color coded
+    # Gross profit -- color coded
     gp_color = "green" if gross_profit >= 0 else "red"
     col_a, col_b = st.columns([3, 1])
     col_a.markdown("**Gross Profit**")
@@ -407,7 +407,7 @@ st.subheader("Comparable Sales")
 if not _COMPS_AVAILABLE:
     st.info("Comparable sales module not available. Install `ingestion/comp_sales.py` and ensure `parcels.duckdb` exists.")
 elif not prop_lat or not prop_lng:
-    st.info("No coordinates available for this property — cannot fetch comps.")
+    st.info("No coordinates available for this property -- cannot fetch comps.")
 else:
     comps_df = (
         comp_result["comps_df"]
@@ -429,19 +429,19 @@ else:
         # Format columns for display
         if "sale_price" in display_df.columns:
             display_df["sale_price"] = display_df["sale_price"].apply(
-                lambda v: f"${v:,.0f}" if pd.notna(v) else "—"
+                lambda v: f"${v:,.0f}" if pd.notna(v) else "--"
             )
         if "price_per_sqft" in display_df.columns:
             display_df["price_per_sqft"] = display_df["price_per_sqft"].apply(
-                lambda v: f"${v:.0f}/sqft" if pd.notna(v) else "—"
+                lambda v: f"${v:.0f}/sqft" if pd.notna(v) else "--"
             )
         if "dist_miles" in display_df.columns:
             display_df["dist_miles"] = display_df["dist_miles"].apply(
-                lambda v: f"{v:.3f} mi" if pd.notna(v) else "—"
+                lambda v: f"{v:.3f} mi" if pd.notna(v) else "--"
             )
         if "sqft" in display_df.columns:
             display_df["sqft"] = display_df["sqft"].apply(
-                lambda v: f"{int(v):,}" if pd.notna(v) else "—"
+                lambda v: f"{int(v):,}" if pd.notna(v) else "--"
             )
 
         display_df = display_df.rename(columns={
@@ -464,8 +464,8 @@ st.caption(
     "It is a guideline, not a guarantee."
 )
 st.caption(
-    "**Deal Rating:** ⭐⭐⭐⭐ Excellent (>20% margin) · ⭐⭐⭐ Good (10–20%) · "
-    "⭐⭐ Fair (5–10%) · ⭐ Weak (<5%). Margin = Gross Profit ÷ ARV."
+    "**Deal Rating:** ⭐⭐⭐⭐ Excellent (>20% margin) · ⭐⭐⭐ Good (10-20%) · "
+    "⭐⭐ Fair (5-10%) · ⭐ Weak (<5%). Margin = Gross Profit ÷ ARV."
 )
 st.caption(
     "**ARV** (After-Repair Value) is estimated from comparable sales when parcel data is available, "

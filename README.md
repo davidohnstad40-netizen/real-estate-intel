@@ -1,4 +1,4 @@
-# Real Estate Seller Intelligence Platform
+﻿# Real Estate Seller Intelligence Platform
 
 Draw a region on a map → discover every property inside it → score each one by motivated-seller probability → get AI-generated door-knock scripts and offer models → track your outreach.
 
@@ -14,7 +14,7 @@ pip install -r requirements.txt
 
 # 2. Configure
 cp .env.example .env
-# Edit .env — add your ANTHROPIC_API_KEY for AI features
+# Edit .env -- add your ANTHROPIC_API_KEY for AI features
 
 # 3. Load seed data (52 Lakes of Radisson homes)
 python -m ingestion.load_sample
@@ -34,16 +34,16 @@ python -m streamlit run app/main.py --server.port 8504
 - Click any marker → loads Property Detail
 
 ### 📋 Ranked List
-- Sorted by 0–100 motivation score
+- Sorted by 0-100 motivation score
 - Filter by buy box (beds, price, equity %, tier)
 - Click a row → loads Property Detail
 
 ### 📍 Property Detail
 - Motivation score breakdown (which signals contributed how many points)
 - Estimated equity & monthly PITI
-- **🚪 Door-knock script** — AI-generated opener + follow-up pivot + letter
-- **🤖 Seller thesis** — why this person is likely to sell
-- **💰 Offer model** — retail / quick-sale / opening / walk-away prices
+- **🚪 Door-knock script** -- AI-generated opener + follow-up pivot + letter
+- **🤖 Seller thesis** -- why this person is likely to sell
+- **💰 Offer model** -- retail / quick-sale / opening / walk-away prices
 - Contact info (phone, email, DOB) after skip trace
 - Score trend chart (updated daily)
 - Human feedback logging
@@ -54,41 +54,41 @@ python -m streamlit run app/main.py --server.port 8504
 - Region intelligence summary (Claude Sonnet)
 
 ### 🚪 Outreach Page (sidebar)
-- Today's knock list — T1/T2 sorted by proximity (nearest-neighbor route)
+- Today's knock list -- T1/T2 sorted by proximity (nearest-neighbor route)
 - Google Maps link for the full drive route
 - Log contact attempts with outcome and follow-up date
 - Follow-up queue (overdue highlighted in red)
 
 ### 🔧 Data Tab
 - DB stats and re-score all properties
-- **Skip trace** — download CSV for batchskiptracing.com ($0.18/record), import results
+- **Skip trace** -- download CSV for batchskiptracing.com ($0.18/record), import results
 - Anoka County full parcel download
 - Feedback history
 
 ---
 
-## Motivation Score (0–100)
+## Motivation Score (0-100)
 
 | Signal | Points |
 |---|---|
 | Post-purchase divorce (confirmed) | +40 |
 | Investor LLC (no homestead) | +30 |
-| No homestead — absentee/moved | +20 |
+| No homestead -- absentee/moved | +20 |
 | Negative equity (underwater) | +20 |
 | Owner age 70+ | +15 |
-| Peak buyer 2020–22 (high-rate carry) | +12 |
+| Peak buyer 2020-22 (high-rate carry) | +12 |
 | Thin equity (<10%) | +10 |
 | Trust-owned (estate vehicle) | +8 |
 | Long hold 15+ years (equity-rich) | +8 |
-| Long hold 12–14 years | +5 |
+| Long hold 12-14 years | +5 |
 | Possible divorce (unverified) | +20 |
 | Prior divorce (pre-dates property) | +5 |
 | Civil litigation | +4 |
 
 **Knock Tiers:**
-- **T1** (score ≥ 40): Verified strong signal — knock first
-- **T2** (score ≥ 20): Moderate signal — knock next
-- **T3** (score ≥ 5): No strong signal — cold knock
+- **T1** (score ≥ 40): Verified strong signal -- knock first
+- **T2** (score ≥ 20): Moderate signal -- knock next
+- **T3** (score ≥ 5): No strong signal -- cold knock
 - **SKIP**: Active listing or just purchased
 
 ---
@@ -105,7 +105,7 @@ python -m agents.skip_trace export
 # Download their results CSV, then import:
 python -m agents.skip_trace import data/batchskiptracing_results.csv
 
-# Free alternative (FastPeopleSearch — lower quality, ~60% hit rate)
+# Free alternative (FastPeopleSearch -- lower quality, ~60% hit rate)
 # Stop Streamlit first, then:
 python -m agents.skip_trace scrape
 ```

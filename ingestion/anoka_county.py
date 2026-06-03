@@ -1,34 +1,49 @@
-"""
+﻿"""
 Anoka County Parcel Ingestion
-Downloads the MN Metro Regional Parcel dataset (public, free) and loads
-parcels for a target city into DuckDB. Run once; re-run to refresh.
+Loads parcel data for a target city into DuckDB (parcels.duckdb).
 
-Source: MN Geospatial Commons
-URL:    https://resources.gisdata.mn.gov/pub/gdrs/data/pub/us_mn_state_metrogis/
-        plan_regional_parcels_open/shp_plan_regional_parcels_open.zip
-Size:   ~250 MB compressed
+Data source options (in priority order):
+  1. Manual: drop a shapefile zip in data/cache/mn_parcels.zip
+     Download from: https://gisdata.mn.gov/dataset/us-mn-state-metrogis-plan-parcels-open
+     Or Anoka County GIS: https://www.anokacounty.us/gis (click Downloads)
+
+  2. Regrid API (free tier, 1000 parcel/mo):
+     Set REGRID_API_KEY in .env, then run: python -m ingestion.anoka_county --regrid Blaine
+
+  3. OpenAddresses (free, address coordinates only, no owner/EMV data):
+     Automatic fallback when shapefile is not available.
+
+Run once; re-run to refresh.
 """
 
-import os, sys, zipfile, tempfile, json, re, time
+import os, sys, zipfile, json, re, time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-import urllib.request
+import urllib.request, urllib.parse
 import duckdb
 from db.schema import get_db
 
-PARCEL_ZIP_URL = (
-    "https://resources.gisdata.mn.gov/pub/gdrs/data/pub/us_mn_state_metrogis/"
-    "plan_regional_parcels_open/shp_plan_regional_parcels_open.zip"
-)
+# MN Geospatial Commons -- may require manual browser download due to bot protection
+# Visit: https://gisdata.mn.gov/dataset/us-mn-state-metrogis-plan-parcels-open
+PARCEL_ZIP_URLS = [
+    "https://resources.gisdata.mn.gov/pub/gdrs/data/pub/us_mn_state_metrogis/plan_parcels_open/shp_plan_parcels_open.zip",
+    "https://resources.gisdata.mn.gov/pub/gdrs/data/pub/us_mn_state_metrogis/plan_regional_parcels_open/shp_plan_regional_parcels_open.zip",
+]
 
-def download_with_progress(url: str, dest: str):
-    print(f"Downloading {url}")
-    print("(~250 MB — will take a few minutes on first run)")
-    def progress(count, block_size, total_size):
-        pct = count * block_size * 100 / total_size if total_size > 0 else 0
-        print(f"\r  {min(pct,100):.1f}%", end="", flush=True)
-    urllib.request.urlretrieve(url, dest, reporthook=progress)
-    print()
+def download_with_progress(dest: str) -> bool:
+    """Try each URL. Return True if successful."""
+    for url in PARCEL_ZIP_URLS:
+        print(f"Trying: {url}")
+        try:
+            def progress(count, block_size, total_size):
+                pct = count * block_size * 100 / max(total_size, 1)
+                print(f"\r  {min(pct,100):.1f}%", end="", flush=True)
+            urllib.request.urlretrieve(url, dest, reporthook=progress)
+            print(f"\nDownloaded: {os.path.getsize(dest)/1e6:.1f} MB")
+            return True
+        except Exception as e:
+            print(f"\n  Failed: {e}")
+    return False
 
 def load_parcels(city: str = "Blaine", state: str = "MN", db_path: str = None,
                  parcel_db_path: str = None):
@@ -85,7 +100,23 @@ def load_parcels(city: str = "Blaine", state: str = "MN", db_path: str = None,
     shp_dir   = os.path.join(cache_dir, "mn_parcels_shp")
 
     if not os.path.exists(zip_path):
-        download_with_progress(PARCEL_ZIP_URL, zip_path)
+        ok = download_with_progress(zip_path)
+        if not ok:
+            print("\n" + "="*60)
+            print("MANUAL DOWNLOAD REQUIRED")
+            print("="*60)
+            print("MN Geospatial Commons requires a browser download (bot protection).")
+            print("\nOption 1 -- Anoka County direct download:")
+            print("  https://www.anokacounty.us/gis")
+            print("  Look for 'Parcel Data Download' or GIS Downloads")
+            print("\nOption 2 -- MN Geospatial Commons (open in browser):")
+            print("  https://gisdata.mn.gov/dataset/us-mn-state-metrogis-plan-parcels-open")
+            print(f"\nAfter downloading, save the zip file to:")
+            print(f"  {zip_path}")
+            print("\nThen re-run: python -m ingestion.anoka_county Blaine")
+            print("="*60)
+            con.close()
+            return
     else:
         print(f"  Using cached zip: {zip_path}")
 

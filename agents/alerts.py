@@ -1,4 +1,4 @@
-"""
+﻿"""
 Email Alert System
 ==================
 Sends an HTML email when tier upgrades are detected or on the daily schedule.
@@ -6,7 +6,7 @@ Sends an HTML email when tier upgrades are detected or on the daily schedule.
 Config (add to .env):
   ALERT_EMAIL_TO       = you@email.com
   ALERT_EMAIL_FROM     = sender@gmail.com
-  ALERT_EMAIL_PASSWORD = your-gmail-app-password   (not your login password —
+  ALERT_EMAIL_PASSWORD = your-gmail-app-password   (not your login password --
                          use Gmail > Security > App Passwords)
 
 Gmail App Password setup:
@@ -86,15 +86,15 @@ def _build_html(upgrades: list, stats: dict, top5: list, today: datetime.date) -
   <div style="display:flex;gap:16px;margin-bottom:24px">
     <div style="flex:1;background:#fff0f0;border-radius:8px;padding:12px 16px;text-align:center">
       <div style="font-size:28px;font-weight:bold;color:#C00000">{t1}</div>
-      <div style="color:#888;font-size:12px">T1 — Knock Now</div>
+      <div style="color:#888;font-size:12px">T1 -- Knock Now</div>
     </div>
     <div style="flex:1;background:#fffde7;border-radius:8px;padding:12px 16px;text-align:center">
       <div style="font-size:28px;font-weight:bold;color:#D6A800">{t2}</div>
-      <div style="color:#888;font-size:12px">T2 — Knock Next</div>
+      <div style="color:#888;font-size:12px">T2 -- Knock Next</div>
     </div>
     <div style="flex:1;background:#f0fff0;border-radius:8px;padding:12px 16px;text-align:center">
       <div style="font-size:28px;font-weight:bold;color:#375623">{t3}</div>
-      <div style="color:#888;font-size:12px">T3 — Cold Knock</div>
+      <div style="color:#888;font-size:12px">T3 -- Cold Knock</div>
     </div>
     <div style="flex:1;background:#f8f8f8;border-radius:8px;padding:12px 16px;text-align:center">
       <div style="font-size:28px;font-weight:bold;color:#444">{avg:.0f}</div>
@@ -133,15 +133,15 @@ def send_alert(upgrades: list, stats: dict, top5: list) -> bool:
     password  = os.getenv("ALERT_EMAIL_PASSWORD")
 
     if not all([to_addr, from_addr, password]):
-        print("[alerts] ALERT_EMAIL_* not configured — skipping email.")
+        print("[alerts] ALERT_EMAIL_* not configured -- skipping email.")
         return False
 
     smtp_host = os.getenv("ALERT_SMTP_HOST", "smtp.gmail.com")
     smtp_port = int(os.getenv("ALERT_SMTP_PORT", "465"))
 
     today   = datetime.date.today()
-    subject = (f"🚨 REI Alert: {len(upgrades)} tier upgrade{'s' if len(upgrades)>1 else ''} — {today}"
-               if upgrades else f"🏘️ REI Daily Intel — {today}")
+    subject = (f"🚨 REI Alert: {len(upgrades)} tier upgrade{'s' if len(upgrades)>1 else ''} -- {today}"
+               if upgrades else f"🏘️ REI Daily Intel -- {today}")
 
     html = _build_html(upgrades, stats, top5, today)
 
@@ -169,7 +169,7 @@ def send_alert(upgrades: list, stats: dict, top5: list) -> bool:
 
 
 if __name__ == "__main__":
-    # Quick test — sends a sample email with no upgrades
+    # Quick test -- sends a sample email with no upgrades
     from db.schema import get_db
     con = get_db(read_only=True)
     tier_rows = con.execute("""
@@ -185,4 +185,4 @@ if __name__ == "__main__":
     stats = {tier: cnt for tier, cnt, _ in tier_rows}
     stats["avg"] = sum(avg*cnt for _, cnt, avg in tier_rows if avg) / max(sum(cnt for _,cnt,_ in tier_rows),1)
     ok = send_alert([], stats, top5)
-    print("Done." if ok else "No email config found — add ALERT_EMAIL_* to .env")
+    print("Done." if ok else "No email config found -- add ALERT_EMAIL_* to .env")

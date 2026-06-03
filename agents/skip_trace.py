@@ -1,12 +1,12 @@
-"""
+﻿"""
 Skip Trace Agent
 ================
 Strategy (tiered by cost):
 
-Tier 0 — Free scrape:  FastPeopleSearch.com via Playwright
-Tier 1 — Paid batch:   BatchSkipTracing.com ($0.18/record, no subscription)
+Tier 0 -- Free scrape:  FastPeopleSearch.com via Playwright
+Tier 1 -- Paid batch:   BatchSkipTracing.com ($0.18/record, no subscription)
           Upload CSV → they return phone, email, relatives, DOB
-Tier 2 — Paid API:     IDI/TLO/CLEAR if volume justifies it
+Tier 2 -- Paid API:     IDI/TLO/CLEAR if volume justifies it
 
 Workflow for 52 properties:
   1. Run export_for_skiptracing()  → generates data/skip_trace_upload.csv
@@ -112,7 +112,7 @@ def _parse_name(owner: str) -> tuple[str, str]:
     if "," in owner:
         parts = owner.split(",", 1)
         return parts[1].strip().split()[0], parts[0].strip()
-    # "First & Second LastName" — take first person only
+    # "First & Second LastName" -- take first person only
     owner = re.sub(r"\s*&\s*\w+\s+\w+$", "", owner).strip()
     parts = owner.split()
     if len(parts) >= 2:

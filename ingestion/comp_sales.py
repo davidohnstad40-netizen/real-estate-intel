@@ -1,4 +1,4 @@
-"""
+﻿"""
 Comparable Sales Engine
 Queries parcels_raw (in parcels.duckdb) for recent sales near a target property.
 Falls back to EMV-based estimate if parcel data not available.
@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 
 # ---------------------------------------------------------------------------
-# Path setup — allow running from any cwd
+# Path setup -- allow running from any cwd
 # ---------------------------------------------------------------------------
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
@@ -171,11 +171,11 @@ def estimate_value(
     Returns
     -------
     dict with keys:
-        est_value     : float  — estimated market value in dollars
-        median_ppsf   : float or None — median $/sqft from comps
+        est_value     : float  -- estimated market value in dollars
+        median_ppsf   : float or None -- median $/sqft from comps
         comp_count    : int
-        method        : str — 'comp_based' or 'emv_based'
-        comps_df      : pd.DataFrame — the raw comps used
+        method        : str -- 'comp_based' or 'emv_based'
+        comps_df      : pd.DataFrame -- the raw comps used
     """
     comps = get_comps(lat=lat, lng=lng, sqft=sqft, db_path=db_path)
 

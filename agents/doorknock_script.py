@@ -1,4 +1,4 @@
-"""
+﻿"""
 Door-Knock Script Generator
 ============================
 Generates personalized door-knock conversation starters and letters
@@ -37,7 +37,7 @@ Write THREE things:
    - One soft question to open dialogue
    - Do NOT mention "motivated seller" or "I know you want to sell"
 
-2. FOLLOW-UP PIVOT (if they're willing to talk — 30-60 seconds)
+2. FOLLOW-UP PIVOT (if they're willing to talk -- 30-60 seconds)
    - Brief explanation of how you buy (no agents, no fees, quick close)
    - One question about their timeline or plans for the property
    - How to handle "I'm not interested" gracefully (leave door open)

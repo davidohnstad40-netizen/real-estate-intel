@@ -1,5 +1,5 @@
-"""
-Field Mode — Mobile-optimized door-knock companion
+﻿"""
+Field Mode -- Mobile-optimized door-knock companion
 ===================================================
 Stripped-down view for use on your phone while door knocking.
 Shows: today's route, phone number, door script, quick log.
@@ -21,7 +21,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# Minimal styling — large touch targets, high contrast
+# Minimal styling -- large touch targets, high contrast
 st.markdown("""<style>
   .block-container { padding: 0.5rem 1rem; max-width: 480px; margin: 0 auto; }
   button { min-height: 48px !important; font-size: 16px !important; }
@@ -139,7 +139,7 @@ st.markdown(f'<span class="{tier_cls}">{tier}</span> &nbsp; Score: **{score}**',
 st.caption(f"Owner: {owner}")
 st.caption(prop.get("primary_signal","")[:80] if prop.get("primary_signal") else "")
 
-# Phone number — big and tappable
+# Phone number -- big and tappable
 phone = prop.get("phone1") or prop.get("phone2")
 if phone:
     st.markdown(f'<div class="big-phone"><a href="tel:{phone}" style="text-decoration:none;color:#0078D4">📱 {phone}</a></div>',
@@ -147,7 +147,7 @@ if phone:
     if prop.get("email1"):
         st.caption(f"✉️ {prop['email1']}")
 else:
-    st.caption("📞 No phone on file — upload BatchSkipTracing results in Data tab")
+    st.caption("📞 No phone on file -- upload BatchSkipTracing results in Data tab")
 
 # Google Maps link
 maps_url = f"https://maps.google.com/?q={prop['address'].replace(' ', '+')}"
@@ -195,7 +195,7 @@ st.divider()
 # ── Quick Log ─────────────────────────────────────────────────────────────────
 st.markdown("**Log this visit**")
 outcome = st.selectbox("Outcome", [
-    "No answer", "Left note", "Spoke — interested", "Spoke — not interested",
+    "No answer", "Left note", "Spoke -- interested", "Spoke -- not interested",
     "Callback scheduled", "Left voicemail", "Come back later"
 ], label_visibility="collapsed", key=f"out_{idx}")
 

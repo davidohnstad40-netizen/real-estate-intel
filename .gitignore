@@ -4,3 +4,6 @@ data/*.duckdb.wal
 __pycache__/
 *.pyc
 .streamlit/secrets.toml
+
+output/
+data/cache/

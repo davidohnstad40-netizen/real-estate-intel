@@ -1,12 +1,12 @@
-"""
+﻿"""
 app/pages/outreach.py
 
 Streamlit outreach tracking page for the real-estate-intel platform.
 
 Tabs:
-  1. Today's Knock List  — optimized route with Folium map + Google Maps link
-  2. Log Contact         — form to record a door knock / call / letter
-  3. Follow-up Queue     — upcoming and overdue follow-ups + full history
+  1. Today's Knock List  -- optimized route with Folium map + Google Maps link
+  2. Log Contact         -- form to record a door knock / call / letter
+  3. Follow-up Queue     -- upcoming and overdue follow-ups + full history
 """
 import sys
 import os
@@ -113,7 +113,7 @@ def main():
     tab1, tab2, tab3 = st.tabs(["Today's Knock List", "Log Contact", "Follow-up Queue"])
 
     # ====================================================================
-    # TAB 1 — Today's Knock List
+    # TAB 1 -- Today's Knock List
     # ====================================================================
     with tab1:
         st.subheader("Today's Knock List")
@@ -204,19 +204,19 @@ def main():
                             f"Signal: {p['signal']}",
                             max_width=250,
                         ),
-                        tooltip=f"#{i} — {p['address']}",
+                        tooltip=f"#{i} -- {p['address']}",
                         icon=folium.Icon(color=color, icon="home", prefix="fa"),
                     ).add_to(m)
 
                 st_folium(m, width=None, height=500)
             else:
                 st.warning(
-                    "Map unavailable — install folium and streamlit-folium:\n"
+                    "Map unavailable -- install folium and streamlit-folium:\n"
                     "`pip install folium streamlit-folium`"
                 )
 
     # ====================================================================
-    # TAB 2 — Log Contact
+    # TAB 2 -- Log Contact
     # ====================================================================
     with tab2:
         st.subheader("Log a Contact")
@@ -262,7 +262,7 @@ def main():
             notes = st.text_area("Notes", placeholder="Any details about the interaction …")
 
             follow_up_date = st.date_input(
-                "Follow-up Date (optional — leave blank to skip)",
+                "Follow-up Date (optional -- leave blank to skip)",
                 value=None,
             )
 
@@ -287,7 +287,7 @@ def main():
                 st.success(f"✅ Contact logged for **{selected_label}** on {contact_date}.")
 
     # ====================================================================
-    # TAB 3 — Follow-up Queue
+    # TAB 3 -- Follow-up Queue
     # ====================================================================
     with tab3:
         st.subheader("Follow-up Queue")

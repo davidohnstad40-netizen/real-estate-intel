@@ -1,5 +1,5 @@
-"""
-run_daily.py — Project root
+﻿"""
+run_daily.py -- Project root
 
 Daily automation script for the real-estate-intel platform.
 
@@ -16,7 +16,7 @@ import os
 from datetime import date
 
 # ---------------------------------------------------------------------------
-# Path setup — ensure project root is importable as a package root
+# Path setup -- ensure project root is importable as a package root
 # ---------------------------------------------------------------------------
 _ROOT = os.path.dirname(os.path.abspath(__file__))
 if _ROOT not in sys.path:
@@ -30,7 +30,7 @@ def build_summary(con, upgrades, today: date) -> str:
     """Build a multi-line summary string for today's run."""
     lines = []
     lines.append("=" * 60)
-    lines.append(f"REAL-ESTATE-INTEL — Daily Summary  [{today}]")
+    lines.append(f"REAL-ESTATE-INTEL -- Daily Summary  [{today}]")
     lines.append("=" * 60)
 
     # ------------------------------------------------------------------ #

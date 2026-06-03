@@ -1,4 +1,4 @@
-"""
+﻿"""
 ingestion/snapshot.py
 
 Daily score snapshot + tier upgrade detection.
@@ -50,7 +50,7 @@ def run_snapshot(db_path: str = None) -> List[Dict[str, Any]]:
     """).fetchall()
 
     if not rows:
-        print("[snapshot] No properties found — nothing to snapshot.")
+        print("[snapshot] No properties found -- nothing to snapshot.")
         return []
 
     # ------------------------------------------------------------------ #
@@ -119,7 +119,7 @@ def run_snapshot(db_path: str = None) -> List[Dict[str, Any]]:
 # -------------------------------------------------------------------------- #
 if __name__ == "__main__":
     print("=" * 60)
-    print("REAL-ESTATE-INTEL — Daily Snapshot")
+    print("REAL-ESTATE-INTEL -- Daily Snapshot")
     print("=" * 60)
 
     upgrades = run_snapshot()

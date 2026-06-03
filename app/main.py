@@ -1,5 +1,5 @@
-"""
-Real Estate Seller Intelligence Platform — v0.2
+﻿"""
+Real Estate Seller Intelligence Platform -- v0.2
 Draw a region → discover + score every property → AI-powered knock list.
 """
 import sys, os, json
@@ -19,7 +19,7 @@ from scoring.motivation import TIER_COLOR, TIER_LABEL, PropertyInput, score as c
 
 # ── page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="REI — Seller Intelligence",
+    page_title="REI -- Seller Intelligence",
     page_icon="🏘️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -69,11 +69,11 @@ def filter_by_polygon(df, geojson):
 
 def tier_badge(tier):
     colors = {"T1":"#C00000","T2":"#D6A800","T3":"#375623","SKIP":"#888","TBD":"#aaa"}
-    labels = {"T1":"T1 — KNOCK","T2":"T2 — KNOCK","T3":"T3","SKIP":"SKIP","TBD":"TBD"}
+    labels = {"T1":"T1 -- KNOCK","T2":"T2 -- KNOCK","T3":"T3","SKIP":"SKIP","TBD":"TBD"}
     c = colors.get(tier,"#aaa"); l = labels.get(tier, tier)
     return f'<span style="background:{c};color:white;border-radius:4px;padding:2px 8px;font-size:12px;font-weight:bold">{l}</span>'
 
-def fmt_money(v, dash="—"):
+def fmt_money(v, dash="--"):
     return f"${v:,.0f}" if pd.notna(v) and v else dash
 
 # ── sidebar ───────────────────────────────────────────────────────────────────
@@ -126,7 +126,7 @@ m1.metric("Total", len(df_active))
 m2.metric("🔴 T1", tier_c.get("T1",0))
 m3.metric("🟡 T2", tier_c.get("T2",0))
 m4.metric("🟢 T3", tier_c.get("T3",0))
-m5.metric("Avg Score", f"{df_active.motivation_score.mean():.0f}" if not df_active.empty else "—")
+m5.metric("Avg Score", f"{df_active.motivation_score.mean():.0f}" if not df_active.empty else "--")
 
 # ── tabs ──────────────────────────────────────────────────────────────────────
 tab_map, tab_list, tab_detail, tab_ai, tab_data = st.tabs([
@@ -134,7 +134,7 @@ tab_map, tab_list, tab_detail, tab_ai, tab_data = st.tabs([
 ])
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 1 — MAP
+# TAB 1 -- MAP
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_map:
     has_coords = df_all.dropna(subset=["lat","lng"])
@@ -180,9 +180,9 @@ with tab_map:
     <div style='position:fixed;bottom:30px;left:30px;z-index:9999;background:white;
          padding:10px 14px;border-radius:8px;border:1px solid #ddd;font-family:Arial;font-size:12px;box-shadow:2px 2px 6px rgba(0,0,0,0.15)'>
       <b>Knock Priority</b><br>
-      <span style='color:#C00000'>●</span> T1 — Knock first<br>
-      <span style='color:#D6A800'>●</span> T2 — Knock next<br>
-      <span style='color:#375623'>●</span> T3 — Cold knock<br>
+      <span style='color:#C00000'>●</span> T1 -- Knock first<br>
+      <span style='color:#D6A800'>●</span> T2 -- Knock next<br>
+      <span style='color:#375623'>●</span> T3 -- Cold knock<br>
       <span style='color:#888'>●</span> Skip<br>
       <span style='opacity:0.3'>●</span> Filtered out
     </div>"""))
@@ -208,7 +208,7 @@ with tab_map:
         if feats:
             st.session_state.polygon = feats[-1]["geometry"]
             region_props = filter_by_polygon(df_all, st.session_state.polygon)
-            st.success(f"Polygon captures **{len(region_props)}** properties — switch to Ranked List or AI Analysis tab.")
+            st.success(f"Polygon captures **{len(region_props)}** properties -- switch to Ranked List or AI Analysis tab.")
 
     # Capture click → select property
     if map_out and map_out.get("last_clicked"):
@@ -219,14 +219,14 @@ with tab_map:
             nearest = geo_df.loc[geo_df.dist.idxmin()]
             if nearest.dist < 0.001:
                 st.session_state.selected_id = nearest.id
-                st.info(f"Selected: **{nearest.address.split(',')[0]}** — switch to Property Detail tab.")
+                st.info(f"Selected: **{nearest.address.split(',')[0]}** -- switch to Property Detail tab.")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 2 — RANKED LIST
+# TAB 2 -- RANKED LIST
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_list:
-    st.subheader(f"Ranked Door-Knock List — {len(df_active)} properties")
+    st.subheader(f"Ranked Door-Knock List -- {len(df_active)} properties")
     st.caption("Click any row to view in Property Detail tab.")
 
     disp = df_active[[
@@ -235,10 +235,10 @@ with tab_list:
         "primary_signal"
     ]].copy()
     disp.columns = ["Tier","Score","Address","Owner","Yrs","EMV","Equity $","Equity %","PITI/mo","Primary Signal"]
-    disp["Yrs"]       = disp["Yrs"].apply(lambda x: f"{x:.0f}" if pd.notna(x) else "—")
+    disp["Yrs"]       = disp["Yrs"].apply(lambda x: f"{x:.0f}" if pd.notna(x) else "--")
     disp["EMV"]       = disp["EMV"].apply(lambda x: fmt_money(x))
     disp["Equity $"]  = disp["Equity $"].apply(lambda x: fmt_money(x))
-    disp["Equity %"]  = disp["Equity %"].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "—")
+    disp["Equity %"]  = disp["Equity %"].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "--")
     disp["PITI/mo"]   = disp["PITI/mo"].apply(lambda x: fmt_money(x))
     disp["Score"]     = disp["Score"].fillna(0).astype(int)
 
@@ -259,7 +259,7 @@ with tab_list:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 3 — PROPERTY DETAIL
+# TAB 3 -- PROPERTY DETAIL
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_detail:
     sel_id = st.session_state.selected_id
@@ -281,7 +281,7 @@ with tab_detail:
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Est. Value", fmt_money(row.est_value))
             c2.metric("Est. Equity", fmt_money(row.est_equity_usd))
-            c3.metric("Equity %", f"{row.equity_pct:.0%}" if pd.notna(row.equity_pct) else "—")
+            c3.metric("Equity %", f"{row.equity_pct:.0%}" if pd.notna(row.equity_pct) else "--")
             c4.metric("Mo. PITI",  fmt_money(row.monthly_piti))
 
             # Comp-based valuation (from parcels.duckdb if available)
@@ -296,9 +296,9 @@ with tab_detail:
                 except Exception:
                     pass
 
-            st.markdown(f"**Owner:** {row.owner_name or '—'}")
-            st.markdown(f"**Years Owned:** {row.years_owned:.0f}" if pd.notna(row.years_owned) else "**Years Owned:** —")
-            st.markdown(f"**Signal:** {row.primary_signal or '—'}")
+            st.markdown(f"**Owner:** {row.owner_name or '--'}")
+            st.markdown(f"**Years Owned:** {row.years_owned:.0f}" if pd.notna(row.years_owned) else "**Years Owned:** --")
+            st.markdown(f"**Signal:** {row.primary_signal or '--'}")
 
             # Contact info (skip trace results)
             try:
@@ -328,7 +328,7 @@ with tab_detail:
                         st.markdown(f"**Relatives:** {ct['relatives']}")
                 else:
                     st.divider()
-                    st.caption("📞 No contact info yet — see Data tab to run skip trace.")
+                    st.caption("📞 No contact info yet -- see Data tab to run skip trace.")
             except Exception:
                 pass  # contact_info table may not exist yet
 
@@ -434,7 +434,7 @@ with tab_detail:
                         for _, tc in tier_changes.iterrows():
                             st.caption(f"  {tc.snapshot_date.date()} → {tc.knock_tier}")
                 else:
-                    st.caption("No history yet — runs daily after first snapshot.")
+                    st.caption("No history yet -- runs daily after first snapshot.")
             except Exception as e:
                 st.caption(f"History unavailable: {e}")
 
@@ -442,12 +442,12 @@ with tab_detail:
             st.divider()
             st.subheader("Log Outcome")
             fb_cols = st.columns([3,1])
-            fb = fb_cols[0].selectbox("", ["—","Good lead","Bad lead","Knocked — interested",
-                                           "Knocked — not interested","Follow up later","Sold","Left note"],
+            fb = fb_cols[0].selectbox("", ["--","Good lead","Bad lead","Knocked -- interested",
+                                           "Knocked -- not interested","Follow up later","Sold","Left note"],
                                       key=f"fb_{sel_id}", label_visibility="collapsed")
             fb_note = fb_cols[1].text_input("Note", placeholder="optional", key=f"fbnote_{sel_id}",
                                             label_visibility="collapsed")
-            if st.button("Save", key=f"save_fb_{sel_id}") and fb != "—":
+            if st.button("Save", key=f"save_fb_{sel_id}") and fb != "--":
                 con = get_con()
                 con.execute("INSERT OR IGNORE INTO human_feedback (id,outcome,notes) VALUES (?,?,?)",
                             [sel_id, fb, fb_note])
@@ -455,7 +455,7 @@ with tab_detail:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 4 — AI ANALYSIS
+# TAB 4 -- AI ANALYSIS
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_ai:
     st.subheader("🤖 AI Region Analysis")
@@ -538,7 +538,7 @@ with tab_ai:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 5 — DATA MANAGEMENT
+# TAB 5 -- DATA MANAGEMENT
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_data:
     st.subheader("🔧 Data Sources & Ingestion")
@@ -606,7 +606,7 @@ with tab_data:
         st.caption(f"Feedback table: {e}")
 
     st.divider()
-    st.markdown("**📞 Skip Trace — Contact Info**")
+    st.markdown("**📞 Skip Trace -- Contact Info**")
     st.caption("Get phone numbers and emails for property owners.")
 
     try:
@@ -623,7 +623,7 @@ with tab_data:
             st.download_button(
                 "⬇️ Download Upload CSV (all 52 owners)",
                 f, "skip_trace_upload.csv", "text/csv",
-                help="Upload this to batchskiptracing.com — ~$0.18/record = ~$9.36 for all 52"
+                help="Upload this to batchskiptracing.com -- ~$0.18/record = ~$9.36 for all 52"
             )
         st.markdown("[→ Upload at batchskiptracing.com](https://www.batchskiptracing.com)", unsafe_allow_html=False)
 
