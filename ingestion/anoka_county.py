@@ -30,9 +30,15 @@ def download_with_progress(url: str, dest: str):
     urllib.request.urlretrieve(url, dest, reporthook=progress)
     print()
 
-def load_parcels(city: str = "Blaine", state: str = "MN", db_path: str = None):
+def load_parcels(city: str = "Blaine", state: str = "MN", db_path: str = None,
+                 parcel_db_path: str = None):
     """Download parcel shapefile and load into DuckDB parcels_raw table."""
-    con = get_db(db_path)
+    # Use a separate parcels.duckdb so this doesn't conflict with the
+    # main rei.duckdb held by the Streamlit app
+    parcel_db_path = parcel_db_path or os.path.join(
+        os.path.dirname(__file__), "..", "data", "parcels.duckdb"
+    )
+    con = get_db(parcel_db_path)
 
     # Install spatial extension
     try:

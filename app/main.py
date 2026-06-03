@@ -322,6 +322,44 @@ with tab_detail:
             else:
                 st.caption("No scored factors found.")
 
+            # Door-Knock Script
+            st.divider()
+            st.subheader("🚪 Door-Knock Script")
+            script_key = f"script_{sel_id}"
+            api_key = os.getenv("ANTHROPIC_API_KEY","")
+
+            # Try cached script from file first
+            if script_key not in st.session_state:
+                try:
+                    from agents.doorknock_script import get_script
+                    cached = get_script(sel_id)
+                    if cached: st.session_state[script_key] = cached
+                except Exception: pass
+
+            if script_key in st.session_state:
+                sc = st.session_state[script_key]
+                if "error" not in sc:
+                    door_tab, letter_tab = st.tabs(["🗣️ Door Opener", "✉️ Leave-Behind Letter"])
+                    with door_tab:
+                        st.markdown(sc.get("door_script",""))
+                    with letter_tab:
+                        st.markdown(sc.get("letter",""))
+                        st.caption("Replace [NAME] and [PHONE] before printing.")
+                else:
+                    st.error(sc["error"])
+            else:
+                if not api_key:
+                    st.caption("Add ANTHROPIC_API_KEY to .env to generate door scripts.")
+                elif st.button("Generate Door Script + Letter", key="gen_script"):
+                    with st.spinner("Writing your door script..."):
+                        try:
+                            from agents.doorknock_script import generate_door_script
+                            sc = generate_door_script(row.to_dict())
+                            st.session_state[script_key] = sc
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error: {e}")
+
             # AI Seller Thesis
             st.divider()
             st.subheader("🤖 AI Seller Thesis")
@@ -423,18 +461,33 @@ with tab_ai:
 
         with col_batch:
             t1t2 = ai_df[ai_df.knock_tier.isin(["T1","T2"])]
-            if st.button(f"🎯 Generate Theses for {len(t1t2)} T1/T2 properties", use_container_width=True):
-                from agents.seller_thesis import generate_thesis
-                prog = st.progress(0)
-                for i, (_, prow) in enumerate(t1t2.iterrows()):
-                    key = f"thesis_{prow.id}"
-                    if key not in st.session_state.ai_theses:
-                        try:
-                            st.session_state.ai_theses[key] = generate_thesis(prow.to_dict())
-                        except Exception as e:
-                            st.session_state.ai_theses[key] = f"Error: {e}"
-                    prog.progress((i+1)/len(t1t2))
-                st.success(f"Generated {len(t1t2)} theses. Switch to Property Detail to view.")
+            col_b1, col_b2 = st.columns(2)
+            with col_b1:
+                if st.button(f"🎯 Batch Theses ({len(t1t2)})", use_container_width=True):
+                    from agents.seller_thesis import generate_thesis
+                    prog = st.progress(0)
+                    for i, (_, prow) in enumerate(t1t2.iterrows()):
+                        key = f"thesis_{prow.id}"
+                        if key not in st.session_state.ai_theses:
+                            try:
+                                st.session_state.ai_theses[key] = generate_thesis(prow.to_dict())
+                            except Exception as e:
+                                st.session_state.ai_theses[key] = f"Error: {e}"
+                        prog.progress((i+1)/len(t1t2))
+                    st.success(f"Done. View in Property Detail tab.")
+            with col_b2:
+                if st.button(f"🚪 Batch Door Scripts ({len(t1t2)})", use_container_width=True):
+                    from agents.doorknock_script import generate_door_script
+                    prog2 = st.progress(0)
+                    for i, (_, prow) in enumerate(t1t2.iterrows()):
+                        key = f"script_{prow.id}"
+                        if key not in st.session_state:
+                            try:
+                                st.session_state[key] = generate_door_script(prow.to_dict())
+                            except Exception as e:
+                                st.session_state[key] = {"error": str(e)}
+                        prog2.progress((i+1)/len(t1t2))
+                    st.success(f"Scripts ready. View in Property Detail tab.")
 
         if st.session_state.region_summary:
             st.divider()
