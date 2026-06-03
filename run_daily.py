@@ -139,6 +139,33 @@ def main():
         fh.write(summary_text + "\n")
 
     print(f"\n[run_daily] Summary written -> {summary_path}")
+
+    # ------------------------------------------------------------------ #
+    # 4. Send email alert                                                  #
+    # ------------------------------------------------------------------ #
+    try:
+        from agents.alerts import send_alert
+        con2 = get_db()
+        tier_rows = con2.execute("""
+            SELECT knock_tier, COUNT(*), AVG(motivation_score)
+            FROM property_scores GROUP BY knock_tier
+        """).fetchall()
+        top5 = con2.execute("""
+            SELECT p.address, ps.knock_tier, ps.motivation_score, ps.primary_signal
+            FROM property_scores ps JOIN properties p ON p.id = ps.id
+            ORDER BY ps.motivation_score DESC LIMIT 5
+        """).fetchall()
+        con2.close()
+
+        tier_stats = {t: c for t, c, _ in tier_rows}
+        total = sum(c for _, c, _ in tier_rows)
+        tier_stats["avg"] = (
+            sum((a or 0) * c for _, c, a in tier_rows) / total if total else 0.0
+        )
+        send_alert(upgrades, tier_stats, top5)
+    except Exception as e:
+        print(f"[run_daily] Email alert error: {e}")
+
     print("[run_daily] Done.")
 
 

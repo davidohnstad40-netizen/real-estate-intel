@@ -271,6 +271,18 @@ with tab_detail:
             c3.metric("Equity %", f"{row.equity_pct:.0%}" if pd.notna(row.equity_pct) else "—")
             c4.metric("Mo. PITI",  fmt_money(row.monthly_piti))
 
+            # Comp-based valuation (from parcels.duckdb if available)
+            if pd.notna(row.get("lat") if hasattr(row,"get") else getattr(row,"lat",None)) and \
+               pd.notna(row.get("lng") if hasattr(row,"get") else getattr(row,"lng",None)):
+                try:
+                    from ingestion.comp_sales import estimate_value
+                    comp_r = estimate_value(row.lat, row.lng, row.sqft, row.emv)
+                    if comp_r["comp_count"] > 0:
+                        st.info(f"📊 Comp-based value: **${comp_r['est_value']:,.0f}** "
+                                f"(${comp_r['median_ppsf']:.0f}/sqft · {comp_r['comp_count']} nearby sales)")
+                except Exception:
+                    pass
+
             st.markdown(f"**Owner:** {row.owner_name or '—'}")
             st.markdown(f"**Years Owned:** {row.years_owned:.0f}" if pd.notna(row.years_owned) else "**Years Owned:** —")
             st.markdown(f"**Signal:** {row.primary_signal or '—'}")
