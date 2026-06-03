@@ -187,6 +187,19 @@ with tab_map:
       <span style='opacity:0.3'>●</span> Filtered out
     </div>"""))
 
+    # Optional heatmap overlay
+    show_heat = st.checkbox("🌡️ Score heatmap", value=False, key="show_heat")
+    if show_heat:
+        from folium.plugins import HeatMap
+        heat_data = [
+            [row.lat, row.lng, float(row.motivation_score or 0)]
+            for _, row in df_all.dropna(subset=["lat","lng"]).iterrows()
+            if pd.notna(row.motivation_score)
+        ]
+        if heat_data:
+            HeatMap(heat_data, radius=20, blur=15, max_zoom=16,
+                    gradient={0.2:"blue",0.5:"lime",0.8:"orange",1.0:"red"}).add_to(m)
+
     map_out = st_folium(m, width=None, height=560, returned_objects=["all_drawings","last_clicked"])
 
     # Capture polygon
