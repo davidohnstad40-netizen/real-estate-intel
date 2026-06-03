@@ -275,6 +275,38 @@ with tab_detail:
             st.markdown(f"**Years Owned:** {row.years_owned:.0f}" if pd.notna(row.years_owned) else "**Years Owned:** —")
             st.markdown(f"**Signal:** {row.primary_signal or '—'}")
 
+            # Contact info (skip trace results)
+            try:
+                contacts = get_con().execute(
+                    "SELECT * FROM contact_info WHERE property_id = ?", [sel_id]
+                ).df()
+                if not contacts.empty:
+                    ct = contacts.iloc[0]
+                    st.divider()
+                    st.subheader("📞 Contact Info")
+                    src = ct.get("source","")
+                    conf = ct.get("confidence","")
+                    st.caption(f"Source: {src} · Confidence: {conf}")
+                    phones = [ct.get(f"phone{i}") for i in range(1,4) if ct.get(f"phone{i}")]
+                    emails = [ct.get(f"email{i}") for i in range(1,3) if ct.get(f"email{i}")]
+                    if phones:
+                        st.markdown("**Phone(s):**")
+                        for p in phones: st.markdown(f"  📱 `{p}`")
+                    if emails:
+                        st.markdown("**Email(s):**")
+                        for e in emails: st.markdown(f"  ✉️ `{e}`")
+                    if ct.get("mailing_addr"):
+                        st.markdown(f"**Mailing Address:** {ct['mailing_addr']}")
+                    if ct.get("dob"):
+                        st.markdown(f"**DOB:** {ct['dob']}")
+                    if ct.get("relatives"):
+                        st.markdown(f"**Relatives:** {ct['relatives']}")
+                else:
+                    st.divider()
+                    st.caption("📞 No contact info yet — see Data tab to run skip trace.")
+            except Exception:
+                pass  # contact_info table may not exist yet
+
             # Score breakdown
             st.divider()
             st.subheader("Score Breakdown")
@@ -496,10 +528,59 @@ with tab_data:
         st.caption(f"Feedback table: {e}")
 
     st.divider()
+    st.markdown("**📞 Skip Trace — Contact Info**")
+    st.caption("Get phone numbers and emails for property owners.")
+
+    try:
+        ct_count = con.execute("SELECT COUNT(*) FROM contact_info").fetchone()[0]
+        st.metric("Contacts in DB", ct_count)
+    except Exception:
+        ct_count = 0
+        st.metric("Contacts in DB", 0)
+
+    # Download the pre-generated upload CSV
+    upload_csv_path = os.path.join(os.path.dirname(__file__), "..", "data", "skip_trace_upload.csv")
+    if os.path.exists(upload_csv_path):
+        with open(upload_csv_path, "rb") as f:
+            st.download_button(
+                "⬇️ Download Upload CSV (all 52 owners)",
+                f, "skip_trace_upload.csv", "text/csv",
+                help="Upload this to batchskiptracing.com — ~$0.18/record = ~$9.36 for all 52"
+            )
+        st.markdown("[→ Upload at batchskiptracing.com](https://www.batchskiptracing.com)", unsafe_allow_html=False)
+
+    # Import results
+    st.markdown("**Import BatchSkipTracing Results:**")
+    uploaded = st.file_uploader("Upload results CSV from BatchSkipTracing", type=["csv"],
+                                 key="skip_import")
+    if uploaded and st.button("Import Contact Info", key="do_skip_import"):
+        import tempfile, csv as csv_mod
+        with tempfile.NamedTemporaryFile(suffix=".csv", delete=False, mode="wb") as tmp:
+            tmp.write(uploaded.read())
+            tmp_path = tmp.name
+        try:
+            from agents.skip_trace import import_batch_results
+            n = import_batch_results(tmp_path)
+            st.success(f"Imported {n} contact records.")
+            st.cache_data.clear()
+        except Exception as e:
+            st.error(f"Import error: {e}")
+
+    if ct_count > 0:
+        st.markdown("**Current Contact Info:**")
+        ct_df = con.execute("""
+            SELECT c.property_id, p.address, c.phone1, c.phone2, c.email1,
+                   c.mailing_addr, c.confidence, c.source
+            FROM contact_info c LEFT JOIN properties p ON c.property_id = p.id
+            ORDER BY p.address
+        """).df()
+        st.dataframe(ct_df, use_container_width=True, hide_index=True)
+
+    st.divider()
     st.markdown("**Quick Export**")
     if st.button("📥 Export T1/T2 as CSV"):
         t1t2 = df_all[df_all.knock_tier.isin(["T1","T2"])]
-        csv = t1t2.to_csv(index=False)
-        st.download_button("Download CSV", csv, "t1_t2_targets.csv", "text/csv")
+        csv_data = t1t2.to_csv(index=False)
+        st.download_button("Download CSV", csv_data, "t1_t2_targets.csv", "text/csv")
 
 st.caption("v0.2 · Real Estate Seller Intelligence · Lakes of Radisson sample · github.com/davidohnstad40-netizen/real-estate-intel")
