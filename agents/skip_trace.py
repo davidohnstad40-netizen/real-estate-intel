@@ -300,11 +300,180 @@ def free_scrape(db_path: str = None, tiers: list = None):
 def get_contact(property_id: str, db_path: str = None) -> Optional[dict]:
     """Fetch contact info for a property. Returns dict or None."""
     con = get_db(db_path, read_only=True)
+    ensure_table(con)
     rows = con.execute(
         "SELECT * FROM contact_info WHERE property_id = ?", [property_id]
     ).df()
     con.close()
     return rows.iloc[0].to_dict() if not rows.empty else None
+
+
+# ── ON-DEMAND SINGLE-PROPERTY SKIP TRACE ──────────────────────────────────────
+
+async def _scrape_one_headless(first: str, last: str, city: str, state: str) -> dict:
+    """Run a single FastPeopleSearch lookup in a fresh headless browser."""
+    from playwright.async_api import async_playwright
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
+        )
+        ctx  = await browser.new_context(user_agent=(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        ))
+        page = await ctx.new_page()
+        result = await _scrape_one(page, first, last, city, state)
+        await browser.close()
+    return result
+
+
+def _store_contact(property_id: str, owner_name: str, result: dict,
+                   source: str, db_path: str = None):
+    """Write skip trace result into contact_info table."""
+    phones = result.get("phones", [])
+    emails = result.get("emails", [])
+    con = get_db(db_path)
+    ensure_table(con)
+    con.execute("""
+        INSERT OR REPLACE INTO contact_info
+        (property_id, owner_name, phone1, phone2, phone3,
+         email1, email2, mailing_addr, dob, relatives,
+         source, confidence, updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,current_timestamp)
+    """, [
+        property_id, owner_name,
+        phones[0] if len(phones) > 0 else None,
+        phones[1] if len(phones) > 1 else None,
+        phones[2] if len(phones) > 2 else None,
+        emails[0] if len(emails) > 0 else None,
+        emails[1] if len(emails) > 1 else None,
+        result.get("mailing_addr"),
+        result.get("dob"),
+        result.get("relatives"),
+        source,
+        "high" if phones else ("medium" if emails else "low"),
+    ])
+    con.close()
+
+
+def _call_batch_skip_api(first: str, last: str, address: str,
+                          city: str, state: str, zip_: str) -> dict:
+    """
+    Call BatchSkipTracing.com API for a single record.
+    API key must be set as BATCH_SKIP_API_KEY in .env.
+
+    BatchSkipTracing API docs: https://batchskiptracing.com/api
+    Endpoint: POST https://api.batchskiptracing.com/
+    Auth: api_key query param or Authorization header
+    Cost: ~$0.18/call (same as batch)
+    """
+    import urllib.request, json as _json
+    api_key = os.getenv("BATCH_SKIP_API_KEY", "")
+    if not api_key:
+        return {"error": "BATCH_SKIP_API_KEY not set in .env"}
+
+    payload = _json.dumps({
+        "firstName":  first,
+        "lastName":   last,
+        "address":    address,
+        "city":       city,
+        "state":      state,
+        "zip":        zip_,
+    }).encode()
+
+    req = urllib.request.Request(
+        f"https://api.batchskiptracing.com/?api_key={api_key}",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = _json.loads(resp.read())
+    except Exception as e:
+        return {"error": str(e)}
+
+    # Normalize BatchSkipTracing API response
+    phones = [data.get(f"Phone{i}","") for i in range(1,6) if data.get(f"Phone{i}")]
+    emails = [data.get(f"Email{i}","") for i in range(1,4) if data.get(f"Email{i}")]
+    mailing = " ".join(filter(None, [
+        data.get("MailingAddress",""), data.get("MailingCity",""),
+        data.get("MailingState",""),   data.get("MailingZip",""),
+    ])).strip()
+    relatives = ", ".join(filter(None, [
+        data.get(f"RelativeName{i}","") for i in range(1,4)
+    ]))
+
+    return {
+        "phones":      phones,
+        "emails":      emails,
+        "mailing_addr": mailing or None,
+        "dob":         data.get("DOB"),
+        "relatives":   relatives or None,
+    }
+
+
+def skip_trace_property(property_id: str, db_path: str = None,
+                         force_paid: bool = False) -> tuple[dict | None, str]:
+    """
+    On-demand skip trace for a single property.
+    Returns (contact_dict, source_label).
+
+    Priority:
+      1. Return cached data if already traced
+      2. Try FastPeopleSearch (free, ~50-60% hit rate)
+      3. If force_paid=True and BATCH_SKIP_API_KEY set: try BatchSkipTracing API (~$0.18)
+      4. Return None if nothing found
+
+    source_label is one of: 'cached', 'fastpeoplesearch', 'batch_skip_api', 'not_found'
+    """
+    # 1. Check cache
+    existing = get_contact(property_id, db_path)
+    if existing and (existing.get("phone1") or existing.get("email1")):
+        return existing, "cached"
+
+    # Get property info needed for the search
+    con = get_db(db_path, read_only=True)
+    row = con.execute("""
+        SELECT p.owner_name, p.address, p.city, p.state, p.zip
+        FROM properties p WHERE p.id = ?
+    """, [property_id]).fetchone()
+    con.close()
+
+    if not row:
+        return None, "not_found"
+
+    owner, address, city, state, zip_ = row
+    first, last = _parse_name(owner or "")
+
+    if not first or not last:
+        return None, "not_found"
+
+    # 2. Free scrape
+    try:
+        result = asyncio.run(_scrape_one_headless(
+            first, last, city or "Blaine", state or "MN"
+        ))
+        if result.get("phones") or result.get("emails"):
+            _store_contact(property_id, owner, result, "fastpeoplesearch", db_path)
+            return get_contact(property_id, db_path), "fastpeoplesearch"
+    except Exception as e:
+        print(f"[skip_trace] Free scrape error: {e}")
+
+    # 3. Paid API (only if explicitly requested)
+    if force_paid:
+        api_key = os.getenv("BATCH_SKIP_API_KEY", "")
+        if not api_key:
+            return None, "no_api_key"
+        result = _call_batch_skip_api(
+            first, last, address or "", city or "Blaine", state or "MN", zip_ or "55449"
+        )
+        if result.get("phones") or result.get("emails"):
+            _store_contact(property_id, owner, result, "batch_skip_api", db_path)
+            return get_contact(property_id, db_path), "batch_skip_api"
+
+    return None, "not_found"
 
 
 if __name__ == "__main__":

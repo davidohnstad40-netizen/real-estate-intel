@@ -300,37 +300,85 @@ with tab_detail:
             st.markdown(f"**Years Owned:** {row.years_owned:.0f}" if pd.notna(row.years_owned) else "**Years Owned:** --")
             st.markdown(f"**Signal:** {row.primary_signal or '--'}")
 
-            # Contact info (skip trace results)
+            # ── Contact Info (on-demand skip trace) ──────────────────────
+            st.divider()
+            st.subheader("📞 Contact Info")
+
+            # Load cached contact (if any)
+            _ct = None
             try:
-                contacts = get_con().execute(
+                _ct_rows = get_con().execute(
                     "SELECT * FROM contact_info WHERE property_id = ?", [sel_id]
                 ).df()
-                if not contacts.empty:
-                    ct = contacts.iloc[0]
-                    st.divider()
-                    st.subheader("📞 Contact Info")
-                    src = ct.get("source","")
-                    conf = ct.get("confidence","")
-                    st.caption(f"Source: {src} · Confidence: {conf}")
-                    phones = [ct.get(f"phone{i}") for i in range(1,4) if ct.get(f"phone{i}")]
-                    emails = [ct.get(f"email{i}") for i in range(1,3) if ct.get(f"email{i}")]
-                    if phones:
-                        st.markdown("**Phone(s):**")
-                        for p in phones: st.markdown(f"  📱 `{p}`")
-                    if emails:
-                        st.markdown("**Email(s):**")
-                        for e in emails: st.markdown(f"  ✉️ `{e}`")
-                    if ct.get("mailing_addr"):
-                        st.markdown(f"**Mailing Address:** {ct['mailing_addr']}")
-                    if ct.get("dob"):
-                        st.markdown(f"**DOB:** {ct['dob']}")
-                    if ct.get("relatives"):
-                        st.markdown(f"**Relatives:** {ct['relatives']}")
-                else:
-                    st.divider()
-                    st.caption("📞 No contact info yet -- see Data tab to run skip trace.")
+                _ct = _ct_rows.iloc[0].to_dict() if not _ct_rows.empty else None
             except Exception:
-                pass  # contact_info table may not exist yet
+                pass
+
+            if _ct and (_ct.get("phone1") or _ct.get("email1")):
+                # Show existing contact data
+                src  = _ct.get("source", "")
+                conf = _ct.get("confidence", "")
+                st.caption(f"Source: **{src}** · Confidence: **{conf}**")
+                phones = [_ct.get(f"phone{i}") for i in range(1,4) if _ct.get(f"phone{i}")]
+                emails = [_ct.get(f"email{i}") for i in range(1,3) if _ct.get(f"email{i}")]
+                if phones:
+                    for p in phones:
+                        st.markdown(f"📱 `{p}`")
+                if emails:
+                    for e in emails:
+                        st.markdown(f"✉️ `{e}`")
+                if _ct.get("mailing_addr"):
+                    st.markdown(f"**Mailing:** {_ct['mailing_addr']}")
+                    if _ct.get("mailing_addr","").split()[0].upper() not in (row.address or "").upper()[:10]:
+                        st.warning("📬 Mailing address differs — owner may not live here (absentee signal)")
+                if _ct.get("dob"):
+                    st.caption(f"DOB: {_ct['dob']}")
+                if _ct.get("relatives"):
+                    st.caption(f"Relatives: {_ct['relatives']}")
+                if st.button("🔄 Re-run skip trace", key=f"re_st_{sel_id}"):
+                    st.session_state[f"run_st_{sel_id}"] = True
+                    st.rerun()
+            else:
+                # On-demand skip trace button
+                has_api_key = bool(os.getenv("BATCH_SKIP_API_KEY",""))
+                st.caption(f"Owner: **{row.owner_name or '--'}**")
+
+                col_free, col_paid = st.columns(2)
+                if col_free.button("🔍 Free Skip Trace", key=f"st_free_{sel_id}",
+                                    use_container_width=True,
+                                    help="Searches FastPeopleSearch.com — free, ~50-60% hit rate"):
+                    with st.spinner("Searching FastPeopleSearch..."):
+                        try:
+                            from agents.skip_trace import skip_trace_property
+                            contact, source = skip_trace_property(sel_id, force_paid=False)
+                            if contact and (contact.get("phone1") or contact.get("email1")):
+                                st.success(f"Found via {source}!")
+                                st.rerun()
+                            else:
+                                st.warning("No results on free source. Try paid skip trace ($0.18).")
+                        except Exception as e:
+                            st.error(f"Skip trace error: {e}")
+
+                paid_help = ("Calls BatchSkipTracing.com API — $0.18, ~80% hit rate"
+                             if has_api_key else
+                             "Add BATCH_SKIP_API_KEY to .env to enable")
+                if col_paid.button("💳 Paid Skip Trace ($0.18)", key=f"st_paid_{sel_id}",
+                                    use_container_width=True, help=paid_help,
+                                    disabled=not has_api_key):
+                    with st.spinner("Calling BatchSkipTracing API..."):
+                        try:
+                            from agents.skip_trace import skip_trace_property
+                            contact, source = skip_trace_property(sel_id, force_paid=True)
+                            if contact and (contact.get("phone1") or contact.get("email1")):
+                                st.success(f"Found! Source: {source}")
+                                st.rerun()
+                            else:
+                                st.error("No results found even via paid source.")
+                        except Exception as e:
+                            st.error(f"API error: {e}")
+
+                if not has_api_key:
+                    st.caption("To enable paid skip trace: add `BATCH_SKIP_API_KEY=your_key` to `.env`")
 
             # Score breakdown
             st.divider()

@@ -147,7 +147,38 @@ if phone:
     if prop.get("email1"):
         st.caption(f"✉️ {prop['email1']}")
 else:
-    st.caption("📞 No phone on file -- upload BatchSkipTracing results in Data tab")
+    # On-demand skip trace right from field mode
+    col_free, col_paid = st.columns(2)
+    has_paid = bool(os.getenv("BATCH_SKIP_API_KEY",""))
+
+    if col_free.button("🔍 Free Lookup", use_container_width=True, key=f"fm_free_{idx}"):
+        with st.spinner("Searching..."):
+            try:
+                from agents.skip_trace import skip_trace_property
+                contact, source = skip_trace_property(prop["id"], force_paid=False)
+                if contact and (contact.get("phone1") or contact.get("email1")):
+                    st.success(f"Found! Reload to see number.")
+                    st.cache_data.clear()
+                    st.rerun()
+                else:
+                    st.warning("No free results.")
+            except Exception as e:
+                st.error(str(e))
+
+    if col_paid.button(f"💳 $0.18 Lookup", use_container_width=True,
+                        key=f"fm_paid_{idx}", disabled=not has_paid):
+        with st.spinner("Calling API..."):
+            try:
+                from agents.skip_trace import skip_trace_property
+                contact, source = skip_trace_property(prop["id"], force_paid=True)
+                if contact and (contact.get("phone1") or contact.get("email1")):
+                    st.success("Found!")
+                    st.cache_data.clear()
+                    st.rerun()
+                else:
+                    st.error("No results.")
+            except Exception as e:
+                st.error(str(e))
 
 # Google Maps link
 maps_url = f"https://maps.google.com/?q={prop['address'].replace(' ', '+')}"
