@@ -31,6 +31,7 @@ class PropertyInput:
     notes_text:      str = ""
     flags_text:      str = ""
     likelihood:      str = ""
+    year_built:      Optional[int]   = None
 
 
 @dataclass
@@ -134,6 +135,23 @@ def score(p: PropertyInput) -> ScoreResult:
         elif equity_pct > 0.45 and p.years_owned and p.years_owned >= 12:
             factors["equity_rich_long_hold"] = 8
 
+    # Appreciation gain signal: big realized gain = strong cash-out motivation
+    # Even without distress, someone who gained 60%+ in 15+ years often sells to
+    # capture the gain (downsizing, retirement, kids left home)
+    if p.prior_sale_price and est_value and p.years_owned:
+        appreciation_pct = (est_value - p.prior_sale_price) / p.prior_sale_price
+        if appreciation_pct >= 0.60 and p.years_owned >= 15:
+            factors["large_appreciation_15yr"] = 10   # 60%+ gain in 15+ yrs
+        elif appreciation_pct >= 0.40 and p.years_owned >= 18:
+            factors["large_appreciation_18yr"] = 8    # 40%+ gain in 18+ yrs (slower market)
+
+    # New construction filter: very low EMV relative to years with no sale = likely builder lot
+    # (EMV < $200K on a property with no sale history = vacant lot / new construction)
+    if est_value and est_value < 200_000 and not p.prior_sale_price:
+        return ScoreResult(total=0, tier="T3",
+                           primary_signal="New construction / vacant lot -- builder listing",
+                           est_value=est_value)
+
     # Hold duration
     if p.years_owned:
         if p.years_owned >= 15:   factors["long_hold_15plus"] = 8
@@ -161,8 +179,10 @@ def score(p: PropertyInput) -> ScoreResult:
     if "peak_buyer_2020_22"   in factors: parts.append(f"Peak buyer {purchase_year} -- high-rate carry")
     if "negative_equity"      in factors: parts.append("Est. negative equity -- underwater")
     if "thin_equity"          in factors: parts.append("Thin equity (<10%)")
-    if "equity_rich_long_hold" in factors: parts.append(f"{int(p.years_owned)}-yr hold -- equity-rich")
-    if "long_hold_15plus"     in factors: parts.append(f"{int(p.years_owned)}-yr hold -- cold knock")
+    if "equity_rich_long_hold"     in factors: parts.append(f"{int(p.years_owned)}-yr hold -- equity-rich")
+    if "large_appreciation_15yr"   in factors: parts.append(f"60%+ appreciation in {int(p.years_owned)} yrs -- cash-out candidate")
+    if "large_appreciation_18yr"   in factors: parts.append(f"40%+ appreciation in {int(p.years_owned)} yrs -- cash-out candidate")
+    if "long_hold_15plus"          in factors: parts.append(f"{int(p.years_owned)}-yr hold -- cold knock")
     if "trust_owned"          in factors: parts.append("Trust-owned -- estate vehicle")
     if not parts:
         yr = f"{int(p.years_owned)}-yr hold" if p.years_owned else "hold unknown"

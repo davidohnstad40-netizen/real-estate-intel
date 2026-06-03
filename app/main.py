@@ -208,7 +208,70 @@ with tab_map:
         if feats:
             st.session_state.polygon = feats[-1]["geometry"]
             region_props = filter_by_polygon(df_all, st.session_state.polygon)
-            st.success(f"Polygon captures **{len(region_props)}** properties -- switch to Ranked List or AI Analysis tab.")
+            pre_loaded = len(region_props)
+
+            # ── MetroGIS live discovery ───────────────────────────────────
+            st.divider()
+            col_info, col_btn = st.columns([3,1])
+            col_info.markdown(
+                f"**{pre_loaded}** pre-loaded properties inside polygon. "
+                f"Discover ALL parcels in this region via live county data:"
+            )
+            if col_btn.button("🔍 Discover All Parcels", use_container_width=True,
+                              help="Queries Anoka County 2025 assessor data in real-time"):
+                with st.spinner("Querying MetroGIS parcel API..."):
+                    try:
+                        from ingestion.metrogis import query_polygon
+                        gdf = query_polygon(st.session_state.polygon)
+                        if gdf.empty:
+                            st.warning("No residential parcels found in this polygon.")
+                        else:
+                            st.session_state["metrogis_results"] = gdf
+                            st.success(f"Found **{len(gdf)}** residential parcels — "
+                                       f"**{(gdf.knock_tier=='T1').sum()}** T1, "
+                                       f"**{(gdf.knock_tier=='T2').sum()}** T2. "
+                                       f"See results below.")
+                    except Exception as e:
+                        st.error(f"MetroGIS query failed: {e}")
+
+    # Show MetroGIS discovery results (persists until polygon is cleared)
+    if "metrogis_results" in st.session_state and st.session_state["metrogis_results"] is not None:
+        mgdf = st.session_state["metrogis_results"]
+        st.subheader(f"Live Discovery — {len(mgdf)} Residential Parcels")
+        st.caption("Data: Anoka County 2025 assessor (MetroGIS). Owner names not available via this API.")
+
+        # Tier filter
+        mg_tiers = st.multiselect("Show tiers", ["T1","T2","T3","SKIP"],
+                                   default=["T1","T2"], key="mg_tier_filter")
+        mgshow = mgdf[mgdf.knock_tier.isin(mg_tiers)] if mg_tiers else mgdf
+
+        disp_mg = mgshow[[
+            "knock_tier","motivation_score","address","homestead","owner_type",
+            "emv","prior_sale_price","prior_sale_year","years_owned",
+            "est_equity_usd","equity_pct","primary_signal"
+        ]].copy()
+        disp_mg.columns = ["Tier","Score","Address","Homestead","Owner Type",
+                            "EMV","Bought For","Buy Year","Yrs Held",
+                            "Est Equity","Equity %","Signal"]
+        disp_mg["EMV"]       = disp_mg["EMV"].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x else "--")
+        disp_mg["Bought For"]= disp_mg["Bought For"].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x else "--")
+        disp_mg["Est Equity"]= disp_mg["Est Equity"].apply(lambda x: f"${x:,.0f}" if pd.notna(x) and x else "--")
+        disp_mg["Equity %"]  = disp_mg["Equity %"].apply(lambda x: f"{x:.0%}" if pd.notna(x) and x else "--")
+        disp_mg["Yrs Held"]  = disp_mg["Yrs Held"].apply(lambda x: f"{x:.0f}" if pd.notna(x) and x else "--")
+        disp_mg["Score"]     = disp_mg["Score"].fillna(0).astype(int)
+
+        def mg_row_bg(row):
+            c = {"T1":"background-color:#fff0f0","T2":"background-color:#fffde7",
+                 "T3":"background-color:#f0fff0"}.get(row["Tier"],"")
+            return [c]*len(row)
+
+        st.dataframe(disp_mg.style.apply(mg_row_bg, axis=1),
+                     use_container_width=True, hide_index=True,
+                     height=min(42*len(disp_mg)+55, 500))
+
+        if st.button("Clear discovery results", key="clear_mg"):
+            st.session_state["metrogis_results"] = None
+            st.rerun()
 
     # Capture click → select property
     if map_out and map_out.get("last_clicked"):
