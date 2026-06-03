@@ -13,7 +13,7 @@ from streamlit_folium import st_folium
 from shapely.geometry import Point, shape
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 from db.schema import get_db
 from scoring.motivation import TIER_COLOR, TIER_LABEL, PropertyInput, score as compute_score
 
@@ -437,6 +437,16 @@ with tab_detail:
             st.divider()
             st.subheader("🤖 AI Seller Thesis")
             thesis_key = f"thesis_{sel_id}"
+
+            # Load pre-generated theses from file
+            if thesis_key not in st.session_state.ai_theses:
+                tf = os.path.join(os.path.dirname(__file__), "..", "data", "theses.json")
+                if os.path.exists(tf):
+                    with open(tf, encoding="utf-8") as _f:
+                        _all = json.load(_f)
+                    if sel_id in _all:
+                        st.session_state.ai_theses[thesis_key] = _all[sel_id].get("thesis","")
+                        st.session_state.ai_theses[f"offers_{sel_id}"] = _all[sel_id].get("offer","")
 
             if thesis_key in st.session_state.ai_theses:
                 st.markdown(st.session_state.ai_theses[thesis_key])
