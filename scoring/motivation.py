@@ -1,0 +1,180 @@
+"""
+Motivation score engine — 0-100 composite score.
+Each factor returns (points, label) so the UI can explain every point.
+"""
+from __future__ import annotations
+import re
+from dataclasses import dataclass, field
+from typing import Optional
+
+RATE_MAP = {
+    2006:0.0635,2007:0.0634,2008:0.0597,2009:0.0503,2010:0.0470,
+    2011:0.0445,2012:0.0370,2013:0.0398,2014:0.0425,2015:0.0385,
+    2016:0.0365,2017:0.0399,2018:0.0460,2019:0.0394,2020:0.0310,
+    2021:0.0295,2022:0.0506,2023:0.0694,2024:0.0676,2025:0.0665,
+}
+VALUE_MULT = 1.08
+LTV        = 0.80
+
+
+@dataclass
+class PropertyInput:
+    address:         str
+    owner_name:      str       = ""
+    emv:             Optional[float] = None
+    prior_sale_price:Optional[float] = None
+    prior_sale_year: Optional[int]   = None
+    years_owned:     Optional[float] = None
+    homestead:       str = "Homestead"
+    owner_type:      str = "Owner-Occupied"
+    mcro_text:       str = ""
+    notes_text:      str = ""
+    flags_text:      str = ""
+    likelihood:      str = ""
+
+
+@dataclass
+class ScoreResult:
+    total:          int
+    tier:           str
+    factors:        dict = field(default_factory=dict)
+    primary_signal: str  = ""
+    est_value:      Optional[float] = None
+    equity_usd:     Optional[float] = None
+    equity_pct:     Optional[float] = None
+    monthly_piti:   Optional[float] = None
+
+
+def _rem_balance(principal, rate, years_paid):
+    r = rate / 12; n = 360; k = min(int(years_paid * 12), n - 1)
+    if r == 0: return principal * (1 - k / n)
+    return principal * ((1+r)**n - (1+r)**k) / ((1+r)**n - 1)
+
+def _mo_pi(principal, rate):
+    r = rate / 12; n = 360
+    if r == 0: return principal / n
+    return principal * r * (1+r)**n / ((1+r)**n - 1)
+
+
+def score(p: PropertyInput) -> ScoreResult:
+    flags  = (p.flags_text + " " + p.notes_text + " " + p.mcro_text).lower()
+    otype  = p.owner_type.lower()
+    like   = p.likelihood.lower()
+
+    # ── Skip cases ────────────────────────────────────────────────────────────
+    is_listed  = "listed" in like or "active listing" in flags
+    is_new     = p.years_owned is not None and p.years_owned <= 1.5
+
+    if is_listed or is_new:
+        signal = "Active MLS listing — not an off-market target" if is_listed else \
+                 "Recently purchased (<2 yrs) — too early"
+        return ScoreResult(total=5, tier="SKIP", factors={"skip": 5}, primary_signal=signal)
+
+    # ── Equity calculation ────────────────────────────────────────────────────
+    est_value   = p.emv * VALUE_MULT if p.emv else None
+    equity_usd  = None
+    equity_pct  = None
+    monthly_piti = None
+
+    purchase_year = p.prior_sale_year
+    if not purchase_year and p.years_owned:
+        purchase_year = int(2026 - p.years_owned)
+    years_paid = (2026 - purchase_year) if purchase_year else (p.years_owned or 0)
+
+    if p.prior_sale_price and purchase_year and est_value:
+        rate      = RATE_MAP.get(purchase_year, 0.045)
+        principal = p.prior_sale_price * LTV
+        bal       = _rem_balance(principal, rate, years_paid)
+        equity_usd = est_value - bal
+        equity_pct = equity_usd / est_value if est_value else None
+
+        pi  = _mo_pi(principal, rate)
+        emv = p.emv or est_value
+        tax_r = 0.018 if "no homestead" in otype or "investor" in otype else 0.012
+        monthly_piti = pi + emv * tax_r / 12 + p.prior_sale_price * 0.005 / 12
+
+    # ── Scoring ───────────────────────────────────────────────────────────────
+    factors: dict[str, int] = {}
+
+    # Divorce signals
+    div_confirmed = ("divorce on record" in flags or "⚠ divorce" in flags or
+                     ("dissolution" in flags and "pre-dates" not in flags
+                      and "no divorce" not in flags and "possible" not in flags))
+    div_possible  = "possible divorce" in flags
+    div_prior     = "pre-dates" in flags and "divorce" in flags
+
+    if div_confirmed:   factors["divorce_confirmed"]   = 40
+    elif div_possible:  factors["divorce_possible"]    = 20
+    elif div_prior:     factors["divorce_prior"]       = 5
+
+    # Homestead / investor
+    if "investor" in otype or "investor" in flags:
+        factors["investor_llc"] = 30
+    elif "no homestead" in otype or "no homestead" in flags:
+        factors["no_homestead"] = 20
+
+    # Elderly owner
+    if "age 79" in flags or "1946" in flags:
+        factors["owner_elderly"] = 15
+
+    # Trust
+    if "trust" in otype:
+        factors["trust_owned"] = 8
+
+    # Peak buyer
+    if purchase_year and 2020 <= purchase_year <= 2022:
+        factors["peak_buyer_2020_22"] = 12
+
+    # Equity position
+    if equity_pct is not None:
+        if equity_pct < 0:
+            factors["negative_equity"] = 20
+        elif equity_pct < 0.10:
+            factors["thin_equity"]     = 10
+        elif equity_pct > 0.45 and p.years_owned and p.years_owned >= 12:
+            factors["equity_rich_long_hold"] = 8
+
+    # Hold duration
+    if p.years_owned:
+        if p.years_owned >= 15:   factors["long_hold_15plus"] = 8
+        elif p.years_owned >= 12: factors["long_hold_12plus"] = 5
+
+    # Civil litigation
+    if "civil" in flags and "no divorce" not in flags:
+        factors["civil_litigation"] = 4
+
+    total = min(sum(factors.values()), 100)
+
+    # Tier
+    if   total >= 40: tier = "T1"
+    elif total >= 20: tier = "T2"
+    elif total >= 5:  tier = "T3"
+    else:             tier = "T3"
+
+    # Primary signal
+    parts = []
+    if "divorce_confirmed"    in factors: parts.append("Post-purchase DIVORCE on record")
+    if "divorce_possible"     in factors: parts.append("Possible divorce — verify before visiting")
+    if "investor_llc"         in factors: parts.append("Investor LLC — profit-driven")
+    if "no_homestead"         in factors: parts.append("No homestead — absentee/moved")
+    if "owner_elderly"        in factors: parts.append("Owner age 79 — estate/care signal")
+    if "peak_buyer_2020_22"   in factors: parts.append(f"Peak buyer {purchase_year} — high-rate carry")
+    if "negative_equity"      in factors: parts.append("Est. negative equity — underwater")
+    if "thin_equity"          in factors: parts.append("Thin equity (<10%)")
+    if "equity_rich_long_hold" in factors: parts.append(f"{int(p.years_owned)}-yr hold — equity-rich")
+    if "long_hold_15plus"     in factors: parts.append(f"{int(p.years_owned)}-yr hold — cold knock")
+    if "trust_owned"          in factors: parts.append("Trust-owned — estate vehicle")
+    if not parts:
+        yr = f"{int(p.years_owned)}-yr hold" if p.years_owned else "hold unknown"
+        parts.append(f"No strong signals — cold knock ({yr})")
+
+    return ScoreResult(
+        total=total, tier=tier, factors=factors,
+        primary_signal=" | ".join(parts),
+        est_value=est_value, equity_usd=equity_usd,
+        equity_pct=equity_pct, monthly_piti=monthly_piti,
+    )
+
+
+TIER_COLOR = {"T1": "#C00000", "T2": "#D6A800", "T3": "#375623", "SKIP": "#888888", "TBD": "#AAAAAA"}
+TIER_LABEL = {"T1": "🔴 T1 — KNOCK", "T2": "🟡 T2 — KNOCK", "T3": "🟢 T3", "SKIP": "⛔ SKIP", "TBD": "❓ TBD"}
