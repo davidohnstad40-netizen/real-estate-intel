@@ -122,9 +122,16 @@ def score(p: PropertyInput) -> ScoreResult:
     if "trust" in otype:
         factors["trust_owned"] = 8
 
-    # Peak buyer
+    # Peak buyer (2020-22 purchases at rate peak — high monthly carry, flat equity)
+    # Raised to 20 pts: data shows peak buyers sell even without other signals
     if purchase_year and 2020 <= purchase_year <= 2022:
-        factors["peak_buyer_2020_22"] = 12
+        factors["peak_buyer_2020_22"] = 20
+
+    # Rapid resale (bought < 3 yrs ago but already selling = life disruption or distress)
+    if p.years_owned and p.years_owned <= 3 and p.prior_sale_price:
+        # Only score if there's an absentee/no-homestead flag (avoids scoring new buyers)
+        if "no homestead" in otype or "no homestead" in flags:
+            factors["rapid_resale_absentee"] = 12
 
     # Equity position
     if equity_pct is not None:
@@ -145,17 +152,29 @@ def score(p: PropertyInput) -> ScoreResult:
         elif appreciation_pct >= 0.40 and p.years_owned >= 18:
             factors["large_appreciation_18yr"] = 8    # 40%+ gain in 18+ yrs (slower market)
 
-    # New construction filter: very low EMV relative to years with no sale = likely builder lot
-    # (EMV < $200K on a property with no sale history = vacant lot / new construction)
-    if est_value and est_value < 200_000 and not p.prior_sale_price:
-        return ScoreResult(total=0, tier="T3",
-                           primary_signal="New construction / vacant lot -- builder listing",
-                           est_value=est_value)
+    # Data quality guard: suspiciously low or high prior sale price = county data error
+    # Residential homes don't sell for $500 or $3.465M in Blaine MN
+    if p.prior_sale_price and (p.prior_sale_price < 10_000 or p.prior_sale_price > 3_000_000):
+        # Zero out sale-derived calculations — don't penalize for bad data
+        purchase_year    = None
+        years_paid       = p.years_owned or 0
+        equity_usd       = None
+        equity_pct       = None
+        monthly_piti     = None
 
-    # Hold duration
+    # New construction filter: very low EMV + no prior sale = vacant lot / builder
+    # ONLY filter if years_owned is very short too (avoids filtering old vacant lots)
+    if est_value and est_value < 200_000 and not p.prior_sale_price:
+        if not p.years_owned or p.years_owned <= 3:
+            return ScoreResult(total=0, tier="T3",
+                               primary_signal="New construction / vacant lot -- builder listing",
+                               est_value=est_value)
+
+    # Hold duration (expanded — 10yr threshold added based on pressure test data)
     if p.years_owned:
-        if p.years_owned >= 15:   factors["long_hold_15plus"] = 8
+        if   p.years_owned >= 15: factors["long_hold_15plus"] = 8
         elif p.years_owned >= 12: factors["long_hold_12plus"] = 5
+        elif p.years_owned >= 10: factors["long_hold_10plus"] = 3
 
     # Civil litigation
     if "civil" in flags and "no divorce" not in flags:
@@ -182,8 +201,10 @@ def score(p: PropertyInput) -> ScoreResult:
     if "equity_rich_long_hold"     in factors: parts.append(f"{int(p.years_owned)}-yr hold -- equity-rich")
     if "large_appreciation_15yr"   in factors: parts.append(f"60%+ appreciation in {int(p.years_owned)} yrs -- cash-out candidate")
     if "large_appreciation_18yr"   in factors: parts.append(f"40%+ appreciation in {int(p.years_owned)} yrs -- cash-out candidate")
+    if "long_hold_10plus"          in factors: parts.append(f"{int(p.years_owned)}-yr hold -- approaching equity stage")
     if "long_hold_15plus"          in factors: parts.append(f"{int(p.years_owned)}-yr hold -- cold knock")
-    if "trust_owned"          in factors: parts.append("Trust-owned -- estate vehicle")
+    if "rapid_resale_absentee"     in factors: parts.append("Absentee selling within 3 yrs -- rapid resale signal")
+    if "trust_owned"               in factors: parts.append("Trust-owned -- estate vehicle")
     if not parts:
         yr = f"{int(p.years_owned)}-yr hold" if p.years_owned else "hold unknown"
         parts.append(f"No strong signals -- cold knock ({yr})")
