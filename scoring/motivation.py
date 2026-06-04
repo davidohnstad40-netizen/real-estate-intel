@@ -93,6 +93,27 @@ def score(p: PropertyInput) -> ScoreResult:
         emv = p.emv or est_value
         tax_r = 0.018 if "no homestead" in otype or "investor" in otype else 0.012
         monthly_piti = pi + emv * tax_r / 12 + p.prior_sale_price * 0.005 / 12
+    # ── Data quality guards (run BEFORE factor scoring) ───────────────────────
+
+    # Guard 1: Bad county sale price data ($500 or $3.465M = data error)
+    if p.prior_sale_price and (p.prior_sale_price < 10_000 or p.prior_sale_price > 3_000_000):
+        purchase_year = None; years_paid = p.years_owned or 0
+        equity_usd = None; equity_pct = None; monthly_piti = None
+
+    # Guard 2: New construction EMV lag
+    # EMV < 40% of sale price + purchase 2022+ = county assessed lot only, not building
+    # Suppresses false negative_equity signal on new builds
+    if (p.prior_sale_price and p.emv and p.emv > 0 and p.prior_sale_price > 0 and
+            p.emv / p.prior_sale_price < 0.40 and
+            purchase_year is not None and purchase_year >= 2022):
+        equity_usd = None; equity_pct = None   # no EMV-based signals for new builds
+
+    # Guard 3: Vacant lot / pre-construction filter
+    if est_value and est_value < 200_000 and not p.prior_sale_price:
+        if not p.years_owned or p.years_owned <= 3:
+            return ScoreResult(total=0, tier="T3",
+                               primary_signal="New construction / vacant lot -- builder listing",
+                               est_value=est_value)
 
     # ── Scoring ───────────────────────────────────────────────────────────────
     factors: dict[str, int] = {}
@@ -152,18 +173,31 @@ def score(p: PropertyInput) -> ScoreResult:
         elif appreciation_pct >= 0.40 and p.years_owned >= 18:
             factors["large_appreciation_18yr"] = 8    # 40%+ gain in 18+ yrs (slower market)
 
-    # Data quality guard: suspiciously low or high prior sale price = county data error
-    # Residential homes don't sell for $500 or $3.465M in Blaine MN
-    if p.prior_sale_price and (p.prior_sale_price < 10_000 or p.prior_sale_price > 3_000_000):
-        # Zero out sale-derived calculations — don't penalize for bad data
-        purchase_year    = None
-        years_paid       = p.years_owned or 0
-        equity_usd       = None
-        equity_pct       = None
-        monthly_piti     = None
+    # ── Data quality guards ───────────────────────────────────────────────────
 
-    # New construction filter: very low EMV + no prior sale = vacant lot / builder
-    # ONLY filter if years_owned is very short too (avoids filtering old vacant lots)
+    # Guard 1: Suspiciously low or high prior sale price = county data error
+    if p.prior_sale_price and (p.prior_sale_price < 10_000 or p.prior_sale_price > 3_000_000):
+        purchase_year = None
+        years_paid    = p.years_owned or 0
+        equity_usd    = None
+        equity_pct    = None
+        monthly_piti  = None
+
+    # Guard 2: New construction EMV assessment lag
+    # EMV < 40% of purchase price + recent sale (2022+) = county only assessed the lot,
+    # not the finished building. Negative equity signal is a false positive here.
+    # The no_homestead and peak_buyer signals are still valid.
+    emv_lag = (
+        p.prior_sale_price and p.emv and
+        p.emv > 0 and p.prior_sale_price > 0 and
+        p.emv / p.prior_sale_price < 0.40 and
+        purchase_year is not None and purchase_year >= 2022
+    )
+    if emv_lag:
+        equity_usd  = None    # disable -- data unreliable for new builds
+        equity_pct  = None
+
+    # Guard 3: Vacant lot / pre-construction (very low EMV, no sale history, short hold)
     if est_value and est_value < 200_000 and not p.prior_sale_price:
         if not p.years_owned or p.years_owned <= 3:
             return ScoreResult(total=0, tier="T3",

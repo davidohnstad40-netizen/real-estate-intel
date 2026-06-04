@@ -43,17 +43,21 @@ def get_con():
     return get_db()
 
 @st.cache_data(ttl=30)
-def load_properties():
+def load_properties(curated_only: bool = False):
     con = get_con()
-    return con.execute("""
+    src_filter = ("WHERE (p.scan_source IS NULL OR p.scan_source = 'manual')"
+                  if curated_only else "")
+    return con.execute(f"""
         SELECT p.id, p.address, p.lat, p.lng, p.owner_name,
                p.beds, p.baths, p.sqft, p.year_built,
                p.emv, p.est_value, p.prior_sale_price, p.prior_sale_year,
                p.years_owned, p.homestead, p.owner_type, p.anoka_pin,
+               COALESCE(p.scan_source, 'manual') AS scan_source,
                s.motivation_score, s.knock_tier, s.primary_signal,
                s.est_equity_usd, s.equity_pct, s.monthly_piti, s.score_factors
         FROM properties p
         LEFT JOIN property_scores s ON p.id = s.id
+        {src_filter}
         ORDER BY s.motivation_score DESC NULLS LAST
     """).df()
 
@@ -93,12 +97,16 @@ with st.sidebar:
     st.divider()
 
     polygon_active = st.checkbox("Filter by drawn polygon", value=False)
+    curated_only   = st.checkbox("Curated 52 only", value=False,
+                                  help="Show only the 52 hand-researched properties "
+                                       "(MCRO-checked, verified signals). Uncheck for "
+                                       "all 18K city scan properties.")
     if st.button("🔄 Refresh data"):
         st.cache_data.clear()
         st.rerun()
 
 # ── load + filter ─────────────────────────────────────────────────────────────
-df_all = load_properties()
+df_all = load_properties(curated_only=curated_only)
 
 # Apply buy box
 df_filtered = df_all.copy()

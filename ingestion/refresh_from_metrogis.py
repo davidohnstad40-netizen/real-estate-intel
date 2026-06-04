@@ -14,20 +14,32 @@ from scoring.motivation import PropertyInput, score as compute_score
 def main():
     con = get_db()
 
-    # Add absentee_flag and owner_mailing columns if missing
-    try:
+    # Add new columns if missing — check existence first to avoid aborting transaction
+    def has_column(c, table, col):
+        try:
+            c.execute(f"SELECT {col} FROM {table} LIMIT 0")
+            return True
+        except Exception:
+            c.execute("ROLLBACK")
+            return False
+
+    if not has_column(con, "properties", "absentee_flag"):
         con.execute("ALTER TABLE properties ADD COLUMN absentee_flag BOOLEAN DEFAULT FALSE")
         print("Added absentee_flag column")
-    except Exception:
-        pass
-    try:
+
+    if not has_column(con, "properties", "owner_mailing"):
         con.execute("ALTER TABLE properties ADD COLUMN owner_mailing VARCHAR")
         print("Added owner_mailing column")
-    except Exception:
-        pass
 
+    if not has_column(con, "properties", "scan_source"):
+        con.execute("ALTER TABLE properties ADD COLUMN scan_source VARCHAR DEFAULT 'manual'")
+        print("Added scan_source column")
+
+    # Only refresh the 52 manually curated properties (not the 18K city scan entries)
     props = con.execute(
-        "SELECT id, address, city FROM properties ORDER BY address"
+        "SELECT id, address, city FROM properties "
+        "WHERE scan_source IS NULL OR scan_source = 'manual' "
+        "ORDER BY address"
     ).fetchall()
 
     print(f"Refreshing {len(props)} properties from MetroGIS 2025 API...")

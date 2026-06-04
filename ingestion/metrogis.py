@@ -132,7 +132,25 @@ def _query(params: dict) -> list[dict]:
             break
         offset += len(features)
 
-    return [_parse_feature(f) for f in results]
+    parsed = [_parse_feature(f) for f in results]
+
+    # Deduplicate by address: keep the record with highest EMV (most complete assessment)
+    # This collapses condo/townhouse clusters that share the same street address
+    seen: dict[str, dict] = {}
+    for p in parsed:
+        addr_key = p.get("address","").upper().strip()
+        if not addr_key:
+            continue
+        if addr_key not in seen:
+            seen[addr_key] = p
+        else:
+            # Keep the one with higher EMV (better assessed)
+            existing_emv = seen[addr_key].get("emv") or 0
+            this_emv     = p.get("emv") or 0
+            if this_emv > existing_emv:
+                seen[addr_key] = p
+
+    return list(seen.values())
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -144,7 +162,7 @@ def lookup_address(address: str, city: str = "Blaine") -> Optional[dict]:
     """
     # Parse into number + street
     parts = address.strip().split()
-    if not parts[0].isdigit():
+    if not parts or not parts[0].isdigit():
         return None
     num  = int(parts[0])
     rest = " ".join(parts[1:]).upper()
