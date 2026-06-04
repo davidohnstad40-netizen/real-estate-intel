@@ -82,10 +82,12 @@ SIGNAL_WEIGHTS = {
     "obituary_exact_address":   35,
     "obituary_lastname_city":   20,
     "obituary_name_city":       10,
-    # Employer news
-    "employer_closure_5mi":     15,
-    "employer_closure_10mi":    10,
-    "employer_stress_area":      5,
+    # Employer news -- AREA CONTEXT ONLY, not applied to individual property scores
+    # Too diffuse: can't know which specific homeowner works at a given employer
+    # Shown as dashboard banner instead. Weights kept at 0 but defined for reference.
+    "employer_closure_5mi":      0,
+    "employer_closure_10mi":     0,
+    "employer_stress_area":      0,
     # Facebook Marketplace
     "facebook_exact_address":   35,
     "facebook_same_street":     20,
@@ -203,20 +205,10 @@ def run_all_available_signals(property_id: str, db_path: str = None,
     except Exception as e:
         results["signals_run"].append(f"estate_sales:ERROR:{e}")
 
-    # 2. Google News (no login required)
-    try:
-        from agents.google_news_monitor import check_for_area
-        news = check_for_area(city or "Blaine", db_path=db_path)
-        for n in news:
-            if n.get("confidence", 0) >= 0.6:
-                pts = 15 if n.get("confidence", 0) >= 0.8 else 10
-                signal_name = "employer_closure_5mi" if pts == 15 else "employer_closure_10mi"
-                save_signal(write_con, prop_id, signal_name, pts,
-                            n["confidence"], n.get("reason",""), n.get("title",""), "google_news")
-                results["signals_fired"].append(signal_name)
-        results["signals_run"].append("google_news")
-    except Exception as e:
-        results["signals_run"].append(f"google_news:ERROR:{e}")
+    # 2. Google News -- area context only, not applied to individual scores
+    # (Too diffuse: employer closure affects area but can't know which homeowner works there)
+    # Shown as a dashboard banner instead. Skip from individual property scoring.
+    results["signals_run"].append("google_news:SKIPPED-area-context-only")
 
     # 3. Bankruptcy (no login required, uses public site)
     try:

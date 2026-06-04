@@ -128,6 +128,22 @@ else:
 
 # ── header metrics ────────────────────────────────────────────────────────────
 st.title("🏘️ Real Estate Seller Intelligence")
+
+# ── Area-level context alerts (informational only -- not in property scores) ──
+try:
+    from agents.google_news_monitor import search_employer_news
+    _news = search_employer_news("Blaine")
+    if _news:
+        for _art in _news[:3]:
+            if _art.get("confidence", 0) >= 0.3:
+                st.warning(
+                    f"📰 **Area alert:** {_art['title'][:90]} "
+                    f"— *area context only, not applied to individual scores*",
+                    icon="⚠️"
+                )
+except Exception:
+    pass
+
 m1, m2, m3, m4, m5 = st.columns(5)
 tier_c = df_active.knock_tier.fillna("TBD").value_counts()
 m1.metric("Total", len(df_active))
