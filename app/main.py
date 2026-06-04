@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 from db.schema import get_db
-from scoring.motivation import TIER_COLOR, TIER_LABEL, PropertyInput, score as compute_score
+from scoring.motivation import TIER_COLOR, TIER_LABEL, FACTOR_LABELS, PropertyInput, score as compute_score
 
 # ── page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -93,12 +93,12 @@ with st.sidebar:
     bb_min_equity = st.slider("Min Equity %", 0, 80, 0)
     bb_tiers      = st.multiselect("Tiers to show",
                                    ["T1","T2","T3","LISTED","SKIP","TBD"],
-                                   default=["T1","T2","T3","TBD"])
+                                   default=["T1","T2","T3","LISTED","TBD"])
     bb_min_score  = st.slider("Min Motivation Score", 0, 100, 0)
     st.divider()
 
     polygon_active = st.checkbox("Filter by drawn polygon", value=False)
-    curated_only   = st.checkbox("Curated 52 only", value=True,
+    curated_only   = st.checkbox("Curated 52 only (uncheck = all 18K Blaine)", value=True,
                                   help="Show only the 52 hand-researched properties "
                                        "(MCRO-checked, verified signals). Uncheck for "
                                        "all 18K city scan properties.")
@@ -131,19 +131,23 @@ else:
 st.title("🏘️ Real Estate Seller Intelligence")
 
 # ── Area-level context alerts (informational only -- not in property scores) ──
-try:
-    from agents.google_news_monitor import search_employer_news
-    _news = search_employer_news("Blaine")
-    if _news:
+@st.cache_data(ttl=3600, show_spinner=False)
+def _get_area_news(city="Blaine"):
+    try:
+        from agents.google_news_monitor import search_employer_news
+        return search_employer_news(city)
+    except Exception:
+        return []
+
+_news = _get_area_news("Blaine")
+if _news:
         for _art in _news[:3]:
             if _art.get("confidence", 0) >= 0.3:
                 st.warning(
                     f"📰 **Area alert:** {_art['title'][:90]} "
-                    f"— *area context only, not applied to individual scores*",
+                    f"-- *area context only, not applied to individual scores*",
                     icon="⚠️"
                 )
-except Exception:
-    pass
 
 m1, m2, m3, m4, m5, m6 = st.columns(6)
 tier_c = df_active.knock_tier.fillna("TBD").value_counts()
@@ -153,7 +157,10 @@ m3.metric("🟡 T2", tier_c.get("T2",0))
 m4.metric("🟢 T3", tier_c.get("T3",0))
 m5.metric("🔵 Listed", tier_c.get("LISTED",0),
           help="On MLS now -- watch for price cuts or listing expiry")
-m6.metric("Avg Score", f"{df_active.motivation_score.mean():.0f}" if not df_active.empty else "--")
+_scored = df_active[df_active.motivation_score.fillna(0) > 0].motivation_score
+m6.metric("Avg Score",
+          f"{_scored.mean():.0f}" if not _scored.empty else "--",
+          help="Average motivation score (0-100). T1 = 40+, T2 = 20-39, T3 = 5-19.")
 
 # ── tabs ──────────────────────────────────────────────────────────────────────
 tab_map, tab_list, tab_detail, tab_ai, tab_data = st.tabs([
@@ -201,7 +208,7 @@ with tab_map:
             location=[row.lat, row.lng],
             radius=9 if tier=="T1" else 7,
             color=color, fill=True, fill_color=color,
-            fill_opacity=0.9 if in_bb else 0.3,
+            fill_opacity=1.0 if tier=="LISTED" else (0.9 if in_bb else 0.3),
             weight=2 if in_bb else 1,
             popup=folium.Popup(popup_html, max_width=270),
             tooltip=f"{row.address.split(',')[0]}  |  Score {score}  |  {tier}",
@@ -216,6 +223,7 @@ with tab_map:
       <span style='color:#D6A800'>●</span> T2 -- Knock next<br>
       <span style='color:#375623'>●</span> T3 -- Cold knock<br>
       <span style='color:#888'>●</span> Skip<br>
+      <span style='color:#1565C0'>●</span> Listed -- On MLS, watch for expiry<br>
       <span style='opacity:0.3'>●</span> Filtered out
     </div>"""))
 
@@ -330,12 +338,12 @@ with tab_list:
         "years_owned","emv","est_equity_usd","equity_pct","monthly_piti",
         "primary_signal"
     ]].copy()
-    disp.columns = ["Tier","Score","Address","Owner","Yrs","EMV","Equity $","Equity %","PITI/mo","Primary Signal"]
-    disp["Yrs"]       = disp["Yrs"].apply(lambda x: f"{x:.0f}" if pd.notna(x) else "--")
-    disp["EMV"]       = disp["EMV"].apply(lambda x: fmt_money(x))
-    disp["Equity $"]  = disp["Equity $"].apply(lambda x: fmt_money(x))
-    disp["Equity %"]  = disp["Equity %"].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "--")
-    disp["PITI/mo"]   = disp["PITI/mo"].apply(lambda x: fmt_money(x))
+    disp.columns = ["Tier","Score","Address","Owner","Yrs","County Value","Equity $","Equity %","Monthly Cost","Primary Signal"]
+    disp["Yrs"]           = disp["Yrs"].apply(lambda x: f"{x:.0f}" if pd.notna(x) else "--")
+    disp["County Value"]  = disp["County Value"].apply(lambda x: fmt_money(x))
+    disp["Equity $"]      = disp["Equity $"].apply(lambda x: fmt_money(x))
+    disp["Equity %"]      = disp["Equity %"].apply(lambda x: f"{x:.0%}" if pd.notna(x) else "--")
+    disp["Monthly Cost"]  = disp["Monthly Cost"].apply(lambda x: fmt_money(x))
     disp["Score"]     = disp["Score"].fillna(0).astype(int)
 
     def row_bg(row):
@@ -373,10 +381,15 @@ with tab_list:
         height=min(42*len(disp_page)+55, 650),
         on_select="rerun", selection_mode="single-row",
     )
+    st.caption("County Value = Anoka County assessed value (EMV). Monthly Cost = est. principal + interest + taxes + insurance.")
+
     # Select row
     if event and event.selection and event.selection.rows:
         sel_idx = event.selection.rows[0]
         st.session_state.selected_id = df_page.iloc[sel_idx].id
+
+    if st.session_state.selected_id:
+        st.info(f"Property selected -- open the **Property Detail** tab above to view full analysis, door script, and contact info.")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -499,9 +512,33 @@ with tab_detail:
                             st.error(f"API error: {e}")
 
                 if not has_api_key:
-                    st.caption("To enable paid skip trace: add `BATCH_SKIP_API_KEY=your_key` to `.env`")
+                    st.caption("Paid skip trace not configured.")
 
             # Score breakdown
+            FACTOR_LABELS = {
+                "divorce_confirmed":    "Divorce on record (confirmed)",
+                "divorce_possible":     "Possible divorce (verify before visiting)",
+                "divorce_prior":        "Prior divorce (pre-dates property)",
+                "investor_llc":         "Investor LLC -- profit-driven ownership",
+                "no_homestead":         "No homestead -- owner likely moved out",
+                "owner_elderly":        "Owner 70+ -- estate/downsizing candidate",
+                "trust_owned":          "Trust-owned -- estate vehicle",
+                "peak_buyer_2020_22":   "Bought at peak rate year (2020-22) -- high monthly cost",
+                "rapid_resale_absentee":"Absentee selling within 3 years -- life disruption",
+                "negative_equity":      "Estimated negative equity -- underwater",
+                "thin_equity":          "Thin equity (under 10%) -- limited cushion",
+                "equity_rich_long_hold":"Long hold + high equity -- cash-out candidate",
+                "large_appreciation_15yr":"60%+ appreciation in 15+ years",
+                "large_appreciation_18yr":"40%+ appreciation in 18+ years",
+                "long_hold_15plus":     "15+ year hold",
+                "long_hold_12plus":     "12+ year hold",
+                "long_hold_10plus":     "10+ year hold",
+                "civil_litigation":     "Civil litigation on record",
+                "employer_layoff_large":"Area employer layoff (area context only)",
+                "on_mls":               "Active MLS listing -- monitor for expiry",
+                "new_purchase":         "Recently purchased -- too early to approach",
+                "skip":                 "Active listing or recently purchased",
+            }
             st.divider()
             st.subheader("Score Breakdown")
             factors = row.score_factors
@@ -510,7 +547,7 @@ with tab_detail:
                     try: factors = json.loads(factors)
                     except: factors = {}
                 for k,v in sorted(factors.items(), key=lambda x:-x[1]):
-                    label = k.replace("_"," ").title()
+                    label = FACTOR_LABELS.get(k, k.replace("_"," ").title())
                     pct   = v / 100
                     st.progress(pct, text=f"{label}: **+{v} pts**")
             else:
@@ -543,7 +580,7 @@ with tab_detail:
                     st.error(sc["error"])
             else:
                 if not api_key:
-                    st.caption("Add ANTHROPIC_API_KEY to .env to generate door scripts.")
+                    st.caption("AI door scripts not configured for this view.")
                 elif st.button("Generate Door Script + Letter", key="gen_script"):
                     with st.spinner("Writing your door script..."):
                         try:
@@ -613,7 +650,7 @@ with tab_detail:
                         for _, tc in tier_changes.iterrows():
                             st.caption(f"  {tc.snapshot_date.date()} → {tc.knock_tier}")
                 else:
-                    st.caption("No history yet -- runs daily after first snapshot.")
+                    st.caption("Score history will appear after the first nightly run (7 AM). This tracks how the property's motivation score changes over time -- useful for spotting properties that are trending T3 -> T2 -> T1.")
             except Exception as e:
                 st.caption(f"History unavailable: {e}")
 

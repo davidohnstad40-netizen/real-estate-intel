@@ -277,3 +277,29 @@ TIER_LABEL = {
     "SKIP":   "⛔ SKIP",
     "TBD":    "❓ TBD",
 }
+
+# Human-readable display names for score factors (used in UI)
+FACTOR_LABELS = {
+    "divorce_confirmed":      "Divorce on record (confirmed)",
+    "divorce_possible":       "Possible divorce (verify before visiting)",
+    "divorce_prior":          "Prior divorce (pre-dates property ownership)",
+    "investor_llc":           "Investor LLC -- profit-driven ownership",
+    "no_homestead":           "No homestead -- owner likely moved out",
+    "owner_elderly":          "Owner 70+ -- estate or downsizing candidate",
+    "trust_owned":            "Trust-owned -- estate vehicle",
+    "peak_buyer_2020_22":     "Bought at peak rate year 2020-22 -- high monthly cost",
+    "rapid_resale_absentee":  "Absentee selling within 3 years -- life disruption",
+    "negative_equity":        "Estimated negative equity -- underwater on mortgage",
+    "thin_equity":            "Thin equity (under 10%) -- limited cushion to sell",
+    "equity_rich_long_hold":  "Long hold + high equity -- cash-out candidate",
+    "large_appreciation_15yr":"60%+ appreciation over 15+ years",
+    "large_appreciation_18yr":"40%+ appreciation over 18+ years",
+    "long_hold_15plus":       "15+ year hold",
+    "long_hold_12plus":       "12-14 year hold",
+    "long_hold_10plus":       "10-11 year hold",
+    "civil_litigation":       "Civil litigation on record",
+    "employer_layoff_large":  "Area employer layoff (context only, not individual signal)",
+    "on_mls":                 "Active MLS listing -- monitor for expiry or price cut",
+    "new_purchase":           "Recently purchased -- too early to approach",
+    "skip":                   "Excluded from targeting",
+}

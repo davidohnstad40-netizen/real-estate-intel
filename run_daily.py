@@ -193,6 +193,32 @@ def main():
     except Exception as e:
         print(f"[run_daily] Email alert error: {e}")
 
+    # ------------------------------------------------------------------ #
+    # 5. Export snapshot for cloud deployment                              #
+    # ------------------------------------------------------------------ #
+    try:
+        from ingestion.export_snapshot import export_to_parquet
+        export_to_parquet()
+
+        # Auto-commit to GitHub so cloud app stays fresh
+        import subprocess
+        result = subprocess.run(
+            ["git", "add", "data/snapshot/"],
+            cwd=_ROOT, capture_output=True, text=True
+        )
+        commit_result = subprocess.run(
+            ["git", "commit", "-m", f"snapshot: auto-update {today}"],
+            cwd=_ROOT, capture_output=True, text=True
+        )
+        if "nothing to commit" not in commit_result.stdout:
+            subprocess.run(["git", "push", "origin", "master"],
+                          cwd=_ROOT, capture_output=True)
+            print(f"[run_daily] Snapshot committed and pushed to GitHub")
+        else:
+            print(f"[run_daily] Snapshot unchanged, no commit needed")
+    except Exception as e:
+        print(f"[run_daily] Snapshot export error: {e}")
+
     print("[run_daily] Done.")
 
 
