@@ -1,0 +1,66 @@
+{
+  "metrics": [
+    {
+      "signal_name": "metrogis_combined",
+      "total_tested": 88,
+      "total_fired": 37,
+      "hit_rate": 42.0,
+      "t1t2_rate": 100.0,
+      "t3_rate": 0.0,
+      "tier_lift": 1000.0,
+      "fp_estimate_pct": 0.0,
+      "weight_mult": 1.0,
+      "verdict": "STRONG -- keep weight"
+    },
+    {
+      "signal_name": "estate_sale",
+      "total_tested": 88,
+      "total_fired": 0,
+      "hit_rate": 0.0,
+      "t1t2_rate": 0.0,
+      "t3_rate": 0.0,
+      "tier_lift": 0.0,
+      "fp_estimate_pct": 0.0,
+      "weight_mult": 0.0,
+      "verdict": "NOISE -- DISABLE this signal"
+    },
+    {
+      "signal_name": "google_news",
+      "total_tested": 88,
+      "total_fired": 0,
+      "hit_rate": 0.0,
+      "t1t2_rate": 0.0,
+      "t3_rate": 0.0,
+      "tier_lift": 0.0,
+      "fp_estimate_pct": 0.0,
+      "weight_mult": 0.0,
+      "verdict": "NOISE -- DISABLE this signal"
+    },
+    {
+      "signal_name": "obituary",
+      "total_tested": 88,
+      "total_fired": 0,
+      "hit_rate": 0.0,
+      "t1t2_rate": 0.0,
+      "t3_rate": 0.0,
+      "tier_lift": 0.0,
+      "fp_estimate_pct": 0.0,
+      "weight_mult": 0.0,
+      "verdict": "NOISE -- DISABLE this signal"
+    },
+    {
+      "signal_name": "bankruptcy",
+      "total_tested": 88,
+      "total_fired": 0,
+      "hit_rate": 0.0,
+      "t1t2_rate": 0.0,
+      "t3_rate": 0.0,
+      "tier_lift": 0.0,
+      "fp_estimate_pct": 0.0,
+      "weight_mult": 0.0,
+      "verdict": "NOISE -- DISABLE this signal"
+    }
+  ],
+  "sample_size": 88,
+  "generated": "2026-06-04T08:34:53.392675"
+}

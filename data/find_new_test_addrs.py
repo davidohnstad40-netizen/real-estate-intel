@@ -1,4 +1,4 @@
-"""Find 10 fresh test addresses from MetroGIS — distinct streets, quality data."""
+﻿"""Find 10 fresh test addresses from MetroGIS -- distinct streets, quality data."""
 import sys, json, urllib.request, urllib.parse
 from datetime import datetime, timezone
 sys.path.insert(0, __file__.replace('data/find_new_test_addrs.py',''))

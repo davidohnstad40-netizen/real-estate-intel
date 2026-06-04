@@ -1,4 +1,4 @@
-"""
+﻿"""
 Pressure test against 10 recently listed/sold homes in Blaine MN 55449.
 Queries MetroGIS for live county data, scores through engine, reports.
 """
@@ -25,7 +25,7 @@ TARGETS = [
 TIER_MAP = {"T1": "T1 KNOCK", "T2": "T2 KNOCK", "T3": "T3 Cold", "SKIP": "SKIP"}
 
 print("=" * 70)
-print("PRESSURE TEST — 10 Recently Listed/Sold Blaine MN 55449 Homes")
+print("PRESSURE TEST -- 10 Recently Listed/Sold Blaine MN 55449 Homes")
 print("=" * 70)
 print()
 
@@ -64,7 +64,7 @@ for addr, known_outcome in TARGETS:
         })
         continue
 
-    # Current owner is still the seller — score them
+    # Current owner is still the seller -- score them
     pi = PropertyInput(
         address          = addr,
         emv              = data.get("emv"),

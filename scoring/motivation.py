@@ -143,7 +143,7 @@ def score(p: PropertyInput) -> ScoreResult:
     if "trust" in otype:
         factors["trust_owned"] = 8
 
-    # Peak buyer (2020-22 purchases at rate peak — high monthly carry, flat equity)
+    # Peak buyer (2020-22 purchases at rate peak -- high monthly carry, flat equity)
     # Raised to 20 pts: data shows peak buyers sell even without other signals
     if purchase_year and 2020 <= purchase_year <= 2022:
         factors["peak_buyer_2020_22"] = 20
@@ -204,7 +204,7 @@ def score(p: PropertyInput) -> ScoreResult:
                                primary_signal="New construction / vacant lot -- builder listing",
                                est_value=est_value)
 
-    # Hold duration (expanded — 10yr threshold added based on pressure test data)
+    # Hold duration (expanded -- 10yr threshold added based on pressure test data)
     if p.years_owned:
         if   p.years_owned >= 15: factors["long_hold_15plus"] = 8
         elif p.years_owned >= 12: factors["long_hold_12plus"] = 5

@@ -1,4 +1,4 @@
-"""
+﻿"""
 MetroGIS Parcel API
 ===================
 Queries the Metropolitan Council's public ArcGIS REST API for Anoka County
@@ -60,7 +60,7 @@ def _parse_feature(f: dict) -> dict:
     parts    = [x for x in [addr_num, st_dir, st_name, st_type, st_post] if x]
     address  = " ".join(parts)
 
-    # Owner mailing vs property — key absentee signal
+    # Owner mailing vs property -- key absentee signal
     own_l1 = (a.get("OWN_ADD_L1","") or "").strip()
     own_l2 = (a.get("OWN_ADD_L2","") or "").strip()
     mailing  = f"{own_l1}, {own_l2}".strip(", ")
@@ -71,7 +71,7 @@ def _parse_feature(f: dict) -> dict:
     years_owned = (2026 - sale_yr) if sale_yr else None
 
     homestead = (a.get("HOMESTEAD","") or "").strip()
-    # Homestead is the definitive indicator — "Y"/"Yes" = owner lives here
+    # Homestead is the definitive indicator -- "Y"/"Yes" = owner lives here
     is_homestead = homestead.upper() in ("Y","YES","TRUE","1","HOMESTEAD")
     owner_type   = "Homestead" if is_homestead else "No Homestead"
 
@@ -188,7 +188,7 @@ def query_polygon(geojson_polygon: dict, city: str = "Blaine") -> pd.DataFrame:
 
     geojson_polygon: {'type': 'Polygon', 'coordinates': [[[lng, lat], ...]]}
 
-    Uses ArcGIS spatial query — no shapefile needed.
+    Uses ArcGIS spatial query -- no shapefile needed.
     Returns a DataFrame sorted by motivation_score DESC.
     """
     from scoring.motivation import PropertyInput, score as compute_score

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Obituary Signal Agent
 =====================
 Scrapes Legacy.com and local newspaper obituaries to find property owners
@@ -77,7 +77,7 @@ async def search_legacy(page, last_name: str, city: str = "Blaine",
             if last_name.lower() in line.lower():
                 snippet = " ".join(lines[max(0,i-2):i+5])
                 # Extract date if present
-                date_match = re.search(r"(\d{4})\s*[-–]\s*(\d{4})", snippet)
+                date_match = re.search(r"(\d{4})\s*[--]\s*(\d{4})", snippet)
                 if date_match:
                     death_year = int(date_match.group(2))
                     if death_year < (date.today().year - years_back):

@@ -235,7 +235,7 @@ with tab_map:
                             st.warning("No residential parcels found in this polygon.")
                         else:
                             st.session_state["metrogis_results"] = gdf
-                            st.success(f"Found **{len(gdf)}** residential parcels — "
+                            st.success(f"Found **{len(gdf)}** residential parcels -- "
                                        f"**{(gdf.knock_tier=='T1').sum()}** T1, "
                                        f"**{(gdf.knock_tier=='T2').sum()}** T2. "
                                        f"See results below.")
@@ -245,7 +245,7 @@ with tab_map:
     # Show MetroGIS discovery results (persists until polygon is cleared)
     if "metrogis_results" in st.session_state and st.session_state["metrogis_results"] is not None:
         mgdf = st.session_state["metrogis_results"]
-        st.subheader(f"Live Discovery — {len(mgdf)} Residential Parcels")
+        st.subheader(f"Live Discovery -- {len(mgdf)} Residential Parcels")
         st.caption("Data: Anoka County 2025 assessor (MetroGIS). Owner names not available via this API.")
 
         # Tier filter
@@ -401,7 +401,7 @@ with tab_detail:
                 if _ct.get("mailing_addr"):
                     st.markdown(f"**Mailing:** {_ct['mailing_addr']}")
                     if _ct.get("mailing_addr","").split()[0].upper() not in (row.address or "").upper()[:10]:
-                        st.warning("📬 Mailing address differs — owner may not live here (absentee signal)")
+                        st.warning("📬 Mailing address differs -- owner may not live here (absentee signal)")
                 if _ct.get("dob"):
                     st.caption(f"DOB: {_ct['dob']}")
                 if _ct.get("relatives"):
@@ -417,7 +417,7 @@ with tab_detail:
                 col_free, col_paid = st.columns(2)
                 if col_free.button("🔍 Free Skip Trace", key=f"st_free_{sel_id}",
                                     use_container_width=True,
-                                    help="Searches FastPeopleSearch.com — free, ~50-60% hit rate"):
+                                    help="Searches FastPeopleSearch.com -- free, ~50-60% hit rate"):
                     with st.spinner("Searching FastPeopleSearch..."):
                         try:
                             from agents.skip_trace import skip_trace_property
@@ -430,7 +430,7 @@ with tab_detail:
                         except Exception as e:
                             st.error(f"Skip trace error: {e}")
 
-                paid_help = ("Calls BatchSkipTracing.com API — $0.18, ~80% hit rate"
+                paid_help = ("Calls BatchSkipTracing.com API -- $0.18, ~80% hit rate"
                              if has_api_key else
                              "Add BATCH_SKIP_API_KEY to .env to enable")
                 if col_paid.button("💳 Paid Skip Trace ($0.18)", key=f"st_paid_{sel_id}",
@@ -871,7 +871,7 @@ with tab_data:
                 permits = check_permits(permit_addr)
                 if permits:
                     pts = score_permit_signal(permits)
-                    st.success(f"Found {len(permits)} permit(s) — signal score: +{pts} pts")
+                    st.success(f"Found {len(permits)} permit(s) -- signal score: +{pts} pts")
                     for p in permits:
                         st.markdown(f"- {p.get('permit_type','?')} ({p.get('issue_date','?')}): "
                                     f"{p.get('description','')}")

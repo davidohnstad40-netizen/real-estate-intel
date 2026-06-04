@@ -1,4 +1,4 @@
-"""
+﻿"""
 Refresh all 52 existing properties in DuckDB with live MetroGIS 2025 data.
 Updates: EMV, sale price/year, homestead, sqft, year built, absentee flag.
 Re-scores all properties with the fresh data.
@@ -14,7 +14,7 @@ from scoring.motivation import PropertyInput, score as compute_score
 def main():
     con = get_db()
 
-    # Add new columns if missing — check existence first to avoid aborting transaction
+    # Add new columns if missing -- check existence first to avoid aborting transaction
     def has_column(c, table, col):
         try:
             c.execute(f"SELECT {col} FROM {table} LIMIT 0")
