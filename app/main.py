@@ -91,7 +91,8 @@ with st.sidebar:
     bb_min_beds   = st.slider("Min Beds",   2, 6, 3)
     bb_max_price  = st.number_input("Max Price ($)", value=1_200_000, step=50_000)
     bb_min_equity = st.slider("Min Equity %", 0, 80, 0)
-    bb_tiers      = st.multiselect("Tiers to show", ["T1","T2","T3","SKIP","TBD"],
+    bb_tiers      = st.multiselect("Tiers to show",
+                                   ["T1","T2","T3","LISTED","SKIP","TBD"],
                                    default=["T1","T2","T3","TBD"])
     bb_min_score  = st.slider("Min Motivation Score", 0, 100, 0)
     st.divider()
@@ -144,13 +145,15 @@ try:
 except Exception:
     pass
 
-m1, m2, m3, m4, m5 = st.columns(5)
+m1, m2, m3, m4, m5, m6 = st.columns(6)
 tier_c = df_active.knock_tier.fillna("TBD").value_counts()
 m1.metric("Total", len(df_active))
 m2.metric("🔴 T1", tier_c.get("T1",0))
 m3.metric("🟡 T2", tier_c.get("T2",0))
 m4.metric("🟢 T3", tier_c.get("T3",0))
-m5.metric("Avg Score", f"{df_active.motivation_score.mean():.0f}" if not df_active.empty else "--")
+m5.metric("🔵 Listed", tier_c.get("LISTED",0),
+          help="On MLS now -- watch for price cuts or listing expiry")
+m6.metric("Avg Score", f"{df_active.motivation_score.mean():.0f}" if not df_active.empty else "--")
 
 # ── tabs ──────────────────────────────────────────────────────────────────────
 tab_map, tab_list, tab_detail, tab_ai, tab_data = st.tabs([
@@ -286,7 +289,8 @@ with tab_map:
 
         def mg_row_bg(row):
             c = {"T1":"background-color:#fff0f0","T2":"background-color:#fffde7",
-                 "T3":"background-color:#f0fff0"}.get(row["Tier"],"")
+                 "T3":"background-color:#f0fff0",
+                 "LISTED":"background-color:#e3f2fd"}.get(row["Tier"],"")
             return [c]*len(row)
 
         st.dataframe(disp_mg.style.apply(mg_row_bg, axis=1),
@@ -330,7 +334,8 @@ with tab_list:
     disp["Score"]     = disp["Score"].fillna(0).astype(int)
 
     def row_bg(row):
-        c = {"T1":"#fff0f0","T2":"#fffde7","T3":"#f0fff0","SKIP":"#f5f5f5"}.get(row["Tier"],"")
+        c = {"T1":"#fff0f0","T2":"#fffde7","T3":"#f0fff0",
+             "LISTED":"#e3f2fd","SKIP":"#f5f5f5"}.get(row["Tier"],"")
         return [f"background-color:{c}"]*len(row)
 
     event = st.dataframe(

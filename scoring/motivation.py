@@ -62,14 +62,24 @@ def score(p: PropertyInput) -> ScoreResult:
     otype  = p.owner_type.lower()
     like   = p.likelihood.lower()
 
-    # ── Skip cases ────────────────────────────────────────────────────────────
-    is_listed  = "listed" in like or "active listing" in flags
-    is_new     = p.years_owned is not None and p.years_owned <= 1.5
+    # ── Early exit cases ─────────────────────────────────────────────────────
+    is_listed = "listed" in like or "active listing" in flags
+    is_new    = p.years_owned is not None and p.years_owned <= 1.5
 
-    if is_listed or is_new:
-        signal = "Active MLS listing -- not an off-market target" if is_listed else \
-                 "Recently purchased (<2 yrs) -- too early"
-        return ScoreResult(total=5, tier="SKIP", factors={"skip": 5}, primary_signal=signal)
+    if is_listed:
+        # Currently on MLS -- different from SKIP (recently bought)
+        # Watch for: price cuts, days-on-market growth, listing expiry -> then knock
+        return ScoreResult(
+            total=0, tier="LISTED", factors={"on_mls": 0},
+            primary_signal="Active MLS listing -- monitor for price cut or expiry",
+            est_value=p.emv * VALUE_MULT if p.emv else None,
+        )
+
+    if is_new:
+        return ScoreResult(
+            total=5, tier="SKIP", factors={"new_purchase": 5},
+            primary_signal="Recently purchased (<2 yrs) -- too early to approach",
+        )
 
     # ── Equity calculation ────────────────────────────────────────────────────
     est_value   = p.emv * VALUE_MULT if p.emv else None
@@ -251,5 +261,19 @@ def score(p: PropertyInput) -> ScoreResult:
     )
 
 
-TIER_COLOR = {"T1": "#C00000", "T2": "#D6A800", "T3": "#375623", "SKIP": "#888888", "TBD": "#AAAAAA"}
-TIER_LABEL = {"T1": "🔴 T1 -- KNOCK", "T2": "🟡 T2 -- KNOCK", "T3": "🟢 T3", "SKIP": "⛔ SKIP", "TBD": "❓ TBD"}
+TIER_COLOR = {
+    "T1":     "#C00000",   # dark red    -- knock first
+    "T2":     "#D6A800",   # amber       -- knock next
+    "T3":     "#375623",   # dark green  -- cold knock
+    "LISTED": "#1565C0",   # blue        -- active MLS listing (watch for expiry)
+    "SKIP":   "#888888",   # grey        -- recently purchased, too early
+    "TBD":    "#AAAAAA",   # light grey  -- not yet researched
+}
+TIER_LABEL = {
+    "T1":     "🔴 T1 -- KNOCK",
+    "T2":     "🟡 T2 -- KNOCK",
+    "T3":     "🟢 T3",
+    "LISTED": "🔵 LISTED",       # on MLS -- watch for expiry/price cut
+    "SKIP":   "⛔ SKIP",
+    "TBD":    "❓ TBD",
+}
