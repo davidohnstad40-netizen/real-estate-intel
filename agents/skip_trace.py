@@ -300,12 +300,16 @@ def free_scrape(db_path: str = None, tiers: list = None):
 def get_contact(property_id: str, db_path: str = None) -> Optional[dict]:
     """Fetch contact info for a property. Returns dict or None."""
     con = get_db(db_path, read_only=True)
-    ensure_table(con)
-    rows = con.execute(
-        "SELECT * FROM contact_info WHERE property_id = ?", [property_id]
-    ).df()
-    con.close()
-    return rows.iloc[0].to_dict() if not rows.empty else None
+    try:
+        rows = con.execute(
+            "SELECT * FROM contact_info WHERE property_id = ?", [property_id]
+        ).df()
+        con.close()
+        return rows.iloc[0].to_dict() if not rows.empty else None
+    except Exception:
+        # contact_info table doesn't exist yet -- return None
+        con.close()
+        return None
 
 
 # ── ON-DEMAND SINGLE-PROPERTY SKIP TRACE ──────────────────────────────────────

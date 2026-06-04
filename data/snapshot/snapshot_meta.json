@@ -1,0 +1,16 @@
+{
+  "generated_at": "2026-06-04T15:03:07.212010+00:00",
+  "property_count": 18792,
+  "t1_count": 1125,
+  "t2_count": 7894,
+  "files": {
+    "properties": "properties.parquet",
+    "property_scores": "scores.parquet",
+    "future_sellers": "future_sellers.parquet"
+  },
+  "row_counts": {
+    "properties": 18792,
+    "property_scores": 18792,
+    "future_sellers": 226
+  }
+}

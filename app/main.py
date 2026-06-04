@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import streamlit as st
 import pandas as pd
 import folium
-from folium.plugins import Draw
+from folium.plugins import Draw, MarkerCluster
 from streamlit_folium import st_folium
 from shapely.geometry import Point, shape
 from dotenv import load_dotenv
@@ -42,7 +42,7 @@ if "region_summary" not in st.session_state: st.session_state.region_summary = N
 def get_con():
     return get_db()
 
-@st.cache_data(ttl=30)
+@st.cache_data(ttl=300)
 def load_properties(curated_only: bool = False):
     con = get_con()
     src_filter = ("WHERE (p.scan_source IS NULL OR p.scan_source = 'manual')"
@@ -98,7 +98,7 @@ with st.sidebar:
     st.divider()
 
     polygon_active = st.checkbox("Filter by drawn polygon", value=False)
-    curated_only   = st.checkbox("Curated 52 only", value=False,
+    curated_only   = st.checkbox("Curated 52 only", value=True,
                                   help="Show only the 52 hand-researched properties "
                                        "(MCRO-checked, verified signals). Uncheck for "
                                        "all 18K city scan properties.")
@@ -176,7 +176,12 @@ with tab_map:
         "polyline":False,"circle":False,"marker":False,"circlemarker":False,
     }, edit_options={"edit":False,"remove":True}).add_to(m)
 
-    for _, row in df_all.dropna(subset=["lat","lng"]).iterrows():
+    # Use MarkerCluster for large datasets (city scan), direct markers for curated
+    geo_df = df_all.dropna(subset=["lat","lng"])
+    use_cluster = len(geo_df) > 200
+    marker_layer = MarkerCluster(name="Properties").add_to(m) if use_cluster else m
+
+    for _, row in geo_df.iterrows():
         tier  = str(row.knock_tier or "TBD")
         color = TIER_COLOR.get(tier,"#999")
         score = int(row.motivation_score) if pd.notna(row.motivation_score) else 0
@@ -200,7 +205,7 @@ with tab_map:
             weight=2 if in_bb else 1,
             popup=folium.Popup(popup_html, max_width=270),
             tooltip=f"{row.address.split(',')[0]}  |  Score {score}  |  {tier}",
-        ).add_to(m)
+        ).add_to(marker_layer)
 
     # Legend
     m.get_root().html.add_child(folium.Element("""
@@ -338,16 +343,40 @@ with tab_list:
              "LISTED":"#e3f2fd","SKIP":"#f5f5f5"}.get(row["Tier"],"")
         return [f"background-color:{c}"]*len(row)
 
+    # Pagination for large datasets (city scan view)
+    PAGE_SIZE = 50
+    total_rows = len(disp)
+    if "list_page" not in st.session_state:
+        st.session_state.list_page = 0
+    if total_rows > PAGE_SIZE:
+        n_pages = (total_rows - 1) // PAGE_SIZE + 1
+        pc1, pc2, pc3 = st.columns([1, 3, 1])
+        if pc1.button("◀ Prev", disabled=st.session_state.list_page == 0):
+            st.session_state.list_page = max(0, st.session_state.list_page - 1)
+            st.rerun()
+        pc2.caption(f"Page {st.session_state.list_page+1} of {n_pages} "
+                    f"({total_rows} total properties)")
+        if pc3.button("Next ▶", disabled=st.session_state.list_page >= n_pages-1):
+            st.session_state.list_page = min(n_pages-1, st.session_state.list_page+1)
+            st.rerun()
+        start = st.session_state.list_page * PAGE_SIZE
+        disp_page = disp.iloc[start:start+PAGE_SIZE]
+        df_page   = df_active.iloc[start:start+PAGE_SIZE]
+    else:
+        disp_page = disp
+        df_page   = df_active
+        st.session_state.list_page = 0
+
     event = st.dataframe(
-        disp.style.apply(row_bg, axis=1),
+        disp_page.style.apply(row_bg, axis=1),
         use_container_width=True, hide_index=True,
-        height=min(42*len(disp)+55, 650),
+        height=min(42*len(disp_page)+55, 650),
         on_select="rerun", selection_mode="single-row",
     )
     # Select row
     if event and event.selection and event.selection.rows:
         sel_idx = event.selection.rows[0]
-        st.session_state.selected_id = df_active.iloc[sel_idx].id
+        st.session_state.selected_id = df_page.iloc[sel_idx].id
 
 
 # ══════════════════════════════════════════════════════════════════════════════
