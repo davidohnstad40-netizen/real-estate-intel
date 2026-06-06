@@ -1,0 +1,8 @@
+# Full local dev dependencies (NOT for Streamlit Community Cloud)
+# Cloud uses requirements.txt (6 packages only)
+duckdb>=1.1.0
+anthropic>=0.30.0
+geopy>=2.4.0
+openpyxl>=3.1.0
+python-dotenv>=1.0.0
+playwright>=1.44.0
